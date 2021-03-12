@@ -24,6 +24,14 @@ void setMotor(int motor, int speed) {
   analogWrite(enablePin[motor], out);
 }
 
+char *cmd = NULL;
+int motorASpeed = 0;
+int motorBSpeed = 0;
+
+const int MAX_CMD = 64;
+
+int lastPing = 0;
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -34,70 +42,79 @@ void setup() {
     pinMode(motorPin2[motor], OUTPUT);
   }
 
+  cmd = (char*)malloc(MAX_CMD);
+
   setMotor(0, 0);
   setMotor(1, 0);
+
+  Serial.println("HELLO");
 }
 
-int motorASpeed = 0;
-int motorBSpeed = 0;
-bool autoControl = false;
+
 
 void loop() {
-  int joyYPosition = analogRead(joyYPin);
-  int joyXPosition = analogRead(joyXPin);
+  
 
-  joyYPosition = 512;
-  joyXPosition = 512;
-
-  if (autoControl && (abs(joyYPosition - 512) > 128 || abs(joyXPosition - 512) > 128)) {
-    autoControl = false;
-    Serial.println("manual control enabled");
-  }
-
+  //if (millis() - lastPing > 1000) {
+    //Serial.println("PONG");
+    //lastPing = millis(); 
+  //}
 
   if (Serial.available() > 0) {
-    motorASpeed = Serial.parseInt();
-    motorBSpeed = Serial.parseInt();
-
-    if (!autoControl) {
-      Serial.println("manual control disabled");
-      autoControl = true;
+    size_t n = Serial.readBytesUntil('\n', cmd, MAX_CMD);
+    if (n == 0 || n == MAX_CMD) {
+      Serial.println("invalid command");
+    } else {
+      cmd[n] = 0; // for extra safety
+      
+      Serial.print("parsing '");
+      Serial.print(cmd);
+      Serial.println("'");
+      
+      if (parseCmd(cmd)) {
+        Serial.println("OK");
+      } else {
+        Serial.println("FAIL - failed to parse");
+      }
     }
-    
+
     while (Serial.available() > 0) {
       Serial.read();
     }
   }
 
-  if (!autoControl) {
-    int YVector = map(joyYPosition, 0, 1023, -255, 255);
-    int XVector = map(joyXPosition, 0, 1023, -255, 255);
-  
-    //Serial.print(XVector);
-    //Serial.print(",");
-    //Serial.println(YVector);
-    
-    int newMotorASpeed = constrain(YVector - XVector, -255, 255);
-    int newMotorBSpeed = constrain(YVector + XVector, -255, 255);
-  
-    if (abs(newMotorASpeed) < 10) {
-      newMotorASpeed = 0;
-    }
-    
-    if (abs(newMotorBSpeed) < 10) {
-      newMotorBSpeed = 0;
-    }
-  
-    if (abs(newMotorASpeed - motorASpeed) > 20 || abs(newMotorBSpeed - motorBSpeed) > 20) {
-      Serial.print(newMotorASpeed);
-      Serial.print(", ");
-      Serial.println(newMotorBSpeed);
-    }
-  
-    motorASpeed = newMotorASpeed;
-    motorBSpeed = newMotorBSpeed;
-  }
-
   setMotor(0, motorASpeed);
   setMotor(1, motorBSpeed);
+}
+
+bool parseCmd(char *cmd) {
+  int v1, v2;
+
+  if (strncmp(cmd, "FWD ", 4) == 0) {
+    Serial.println("got a FWD");
+    Serial.println(cmd+4);
+    v1 = atoi(cmd+4);
+    Serial.println(v1);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = v1;
+      motorBSpeed = v1;
+
+      return true;
+    }
+  } else if (strncmp(cmd, "BCK ", 4) == 0) {
+    v1 = atoi(cmd+4);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = -v1;
+      motorBSpeed = -v1;
+
+      return true;
+    }
+  } else if (strncmp(cmd, "STOP", 4) == 0) {
+      motorASpeed = 0;
+      motorBSpeed = 0;
+
+      return true;
+  }
+
+  return false;
 }
