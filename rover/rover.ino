@@ -45,7 +45,7 @@ int16_t packetnum = 0;  // packet counter, we increment per xmission
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
+  //while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
 
   pinMode(RFM69_RST, OUTPUT);
@@ -105,7 +105,7 @@ void loop() {
   }
 
   if (rf69.available()) {  
-    n = sizeof(cmd);
+    n = MAX_CMD;
     if (!rf69.recv((uint8_t *)cmd, &n)) {
       Serial.println("failed to recv");
     }
