@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "minunit.h"
 #include "mock_arduino.h"
 #include "to.h"
@@ -29,12 +30,12 @@ static char * test_init() {
 
 static char * test_set() {
     struct TO to;
-    int r = TO_init(&to, 2);
+    int r = TO_init(&to, 1);
     mu_assert("failed to init", r == 0);
 
     uint8_t v = 42;
 
-    r = TO_set(&to, 0, v);
+    r = TO_set(&to, 1, v);
     mu_assert("failed to set 0", r == 0);
 
     r = TO_set(&to, 4, v);
@@ -48,11 +49,11 @@ static char * test_empty_encode() {
     int r = TO_init(&to, 0);
     mu_assert("failed to init", r == 0);
 
-    uint8_t *data;
-    size_t size;
+    uint8_t *data = NULL;
+    size_t size = 0;
 
-    TO_encode(&to, &data, &size);
-    mu_assert("failed to set size", size == 0);
+    int encoded = TO_encode(&to, data, size);
+    mu_assert("test_empty_encode: failed to set size", encoded == 0);
 
     return 0;
 }
@@ -64,15 +65,16 @@ static char * test_encode() {
 
     uint8_t v = 42;
 
-    r = TO_set(&to, 0, v);
+    r = TO_set(&to, 1, v);
     mu_assert("failed to set 0", r == 0);
 
-    uint8_t *data;
-    size_t size;
+    uint8_t *data = malloc(1024);
 
-    TO_encode(&to, &data, &size);
-    mu_assert("failed to set data", data != NULL);
-    mu_assert("failed to set size", size > 0);
+    int encoded = TO_encode(&to, data, 1024);
+    //mu_assert("failed to set data", data != NULL);
+    mu_assert("test_encode: failed to set size", encoded > 0);
+
+    free(data);
 
     return 0;
 }
