@@ -43,9 +43,45 @@ static char * test_set() {
     return 0;
 }
 
+static char * test_empty_encode() {
+    struct TO to;
+    int r = TO_init(&to, 0);
+    mu_assert("failed to init", r == 0);
+
+    uint8_t *data;
+    size_t size;
+
+    TO_encode(&to, &data, &size);
+    mu_assert("failed to set size", size == 0);
+
+    return 0;
+}
+
+static char * test_encode() {
+    struct TO to;
+    int r = TO_init(&to, 2);
+    mu_assert("failed to init", r == 0);
+
+    uint8_t v = 42;
+
+    r = TO_set(&to, 0, v);
+    mu_assert("failed to set 0", r == 0);
+
+    uint8_t *data;
+    size_t size;
+
+    TO_encode(&to, &data, &size);
+    mu_assert("failed to set data", data != NULL);
+    mu_assert("failed to set size", size > 0);
+
+    return 0;
+}
+
 static char * all_tests() {
     mu_run_test(test_init);
     mu_run_test(test_set);
+    mu_run_test(test_empty_encode);
+    mu_run_test(test_encode);
     //mu_run_test(test_bar);
     return 0;
 }

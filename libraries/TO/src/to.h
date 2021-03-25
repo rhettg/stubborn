@@ -21,4 +21,5 @@ struct TO {
 int TO_init(struct TO *to, int count);
 //int TO_set(struct TO *to, int param, uint8_t value);
 int TO_set(struct TO *to, int param, uint32_t value);
+void TO_encode(struct TO *to, uint8_t **data, size_t *size);
 #endif

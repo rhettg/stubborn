@@ -26,3 +26,9 @@ int TO_set(struct TO *to, int param, uint32_t value)
     to->objects[param].data = value;
     return 0;
 }
+
+void TO_encode(struct TO *to, uint8_t **data, size_t *size)
+{
+    *size = sizeof(struct TO) * to->count;
+    *data = (uint8_t *)to->objects;
+}

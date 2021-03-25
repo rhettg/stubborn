@@ -1,27 +1,31 @@
-TARGET = to-test
+TARGET = build/to-test
 LIBS = -lm
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -Isrc
+OBJDIR = ./build
 
 .PHONY: default test all clean
 
-default: $(TARGET)
+default: build/to.o
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
+# Search the correct subdirectories for targets
+VPATH = src:build:test
+
+TEST_OBJECTS = $(patsubst test/%.c, $(OBJDIR)/%.o, $(wildcard test/*.c))
+OBJECTS = $(patsubst src/%.c, $(OBJDIR)/%.o, $(wildcard src/*.c))
 HEADERS = $(wildcard *.h)
 
-%.o: %.c $(HEADERS)
+build/%.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
+build/to-test: $(OBJECTS) $(TEST_OBJECTS)
+	$(CC) $(TEST_OBJECTS) $(OBJECTS) -Wall $(LIBS) -o $@
 
 test: $(TARGET)
 	./$(TARGET)
 
 clean:
-	-rm -f *.o
-	-rm -f $(TARGET)
+	-rm -f $(OBJDIR)/*.o $(TARGET)
