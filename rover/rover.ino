@@ -47,15 +47,31 @@ unsigned long lastSent = 0;
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 
+uint8_t rf_buf[RH_RF69_MAX_MESSAGE_LEN];
+
 unsigned long impact = 0;
 
 struct TO to;
+
+EVT_t evt;
+COM_t com = {0};
+
+void debugEvent(EVT_Event_t *e)
+{
+  Serial.print("Event: ");
+  Serial.println(e->type);
+}
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
+
+  EVT_init(&evt);
+  com.evt = &evt;
+
+  EVT_subscribe(&evt, &debugEvent);
 
   int r = TO_init(&to, 16);
   if (r != 0) {
@@ -90,6 +106,8 @@ void setup() {
 
   Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
 
+  EVT_subscribe(&evt, &rfm_notify);
+
   for (int motor = 0; motor < 2; motor++) {
     pinMode(enablePin[motor], OUTPUT);
     pinMode(motorPin1[motor], OUTPUT);
@@ -110,24 +128,29 @@ void setup() {
 uint8_t to_buf[MAX_TO_SIZE];
 size_t to_size;
 
+void rfm_notify(EVT_Event_t *evt) {
+  if (COM_EVT_TYPE_DATA != evt->type) {
+    return;
+  }
+
+  COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
+  rf69.send(d_evt->data, d_evt->length);
+  rf69.waitPacketSent();
+}
+
 void loop() {
   if (0 > TO_set(&to, TO_PARAM_MILLIS, millis())) {
     Serial.println("ERROR: failed setting millis");
   }
 
   if (millis() - lastSent > 1000) {
-    COM_init((struct COM_Msg *)to_buf, COM_TYPE_TO);
-    int encoded = TO_encode(&to, to_buf+sizeof(struct COM_Msg), MAX_TO_SIZE);
-    if (encoded == 0) {
-      Serial.println("0-value TO");
-    } else {
-      Serial.print("TO: ");
-      for(int n = 0; n < encoded; n++) {
-        Serial.print(' ');
-        Serial.print(to_buf[n], HEX);
+    size_t to_size = TO_encode(&to, to_buf, sizeof(to_buf));
+    if (0 < to_size) {
+      if (0 > COM_send_to(&com, to_buf, to_size)) {
+        Serial.println("Error: COM_send_to failed");
       }
-      Serial.println();
     }
+
     Serial.println("PING");
     strncpy(cmd, "PING", 4);
     cmd[4] = 0;
@@ -144,14 +167,16 @@ void loop() {
     while (Serial.available() > 0) {
       Serial.read();
     }
-    
   }
 
   if (rf69.available()) {  
-    n = MAX_CMD;
-    if (!rf69.recv((uint8_t *)cmd, &n)) {
+    n = sizeof(rf_buf);
+
+    if (!rf69.recv(rf_buf, &n)) {
       Serial.println("failed to recv");
     }
+
+    COM_recv(&com, rf_buf, n);
   }
 
   if (n > 0) {
@@ -242,4 +267,8 @@ void Blink(byte PIN, byte DELAY_MS, byte loops) {
     digitalWrite(PIN,LOW);
     delay(DELAY_MS);
   }
+}
+
+int rfm_receive(void)
+{
 }
