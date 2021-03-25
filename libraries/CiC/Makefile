@@ -21,11 +21,11 @@ build/%.o: %.c $(HEADERS)
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-build/to-test: $(OBJECTS) $(TEST_OBJECTS)
-	$(CC) $(TEST_OBJECTS) $(OBJECTS) -Wall $(LIBS) -o $@
+build/test_%: test_%.c $(OBJECTS)
+	$(CC) $(CFLAGS) $< $(OBJECTS) -Wall $(LIBS) -o $@
 
-test: $(TARGET)
-	./$(TARGET)
+test: build/test_to
+	./build/test_to
 
 clean:
 	-rm -f $(OBJDIR)/*.o $(TARGET)
