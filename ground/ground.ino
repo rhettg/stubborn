@@ -3,6 +3,7 @@
 #include <RH_RF69.h>
 
 char *cmd = NULL;
+char *recv = NULL;
 
 #define MAX_CMD       64
 
@@ -52,8 +53,9 @@ void setup() {
   Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
 
   cmd = (char*)malloc(MAX_CMD);
+  recv = (char*)malloc(MAX_CMD);
 
-  Serial.println("HELLO");
+  Serial.println("Ready");
 }
 
 bool running = false;
@@ -92,6 +94,26 @@ void loop() {
     rf69.send((uint8_t *)cmd, strlen(cmd));
     rf69.waitPacketSent();
     Serial.println(" [SENT]");
+  }
+
+  if (rf69.available()) {
+    n = MAX_CMD;
+    if (!rf69.recv((uint8_t *)recv, &n)) {
+      Serial.println("failed to recv");
+    }
+
+    if (n > 0) {
+      recv[n] = 0;
+      Serial.print("<- ");
+      Serial.println(recv);
+    }
+    Serial.print("RSSI: ");
+    Serial.print(rf69.lastRssi());
+    Serial.println(" dBM");
+
+    //Serial.print("Temp: ");
+    //Serial.print(rf69.temperatureRead());
+    //Serial.println();
   }
 }
 

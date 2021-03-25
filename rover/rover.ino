@@ -2,6 +2,10 @@
 #include <SPI.h>
 #include <RH_RF69.h>
 
+extern "C" {
+#include "to.h"
+}
+
 int enablePin[] = {10, 5};
 int motorPin1[] = {9, 7};
 int motorPin2[] = {8, 6};
@@ -37,16 +41,26 @@ int motorBSpeed = 0;
 
 #define RF69_FREQ 915.0
 
-// int lastPing = 0;
+unsigned long lastSent = 0;
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 
+unsigned long impact = 0;
+
+struct TO to;
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  //while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
+  while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
+
+  int r = TO_init(&to, 16);
+  if (r != 0) {
+    Serial.println("failed to initialize TO");
+    abort();
+  }
 
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
@@ -89,11 +103,37 @@ void setup() {
   Serial.println("HELLO");
 }
 
+#define TO_PARAM_MILLIS 1
+
+#define MAX_TO_SIZE 60
+uint8_t to_buf[MAX_TO_SIZE];
+size_t to_size;
+
 void loop() {
-  //if (millis() - lastPing > 1000) {
-    //Serial.println("PONG");
-    //lastPing = millis(); 
-  //}
+  if (0 > TO_set(&to, TO_PARAM_MILLIS, millis())) {
+    Serial.println("ERROR: failed setting millis");
+  }
+
+  if (millis() - lastSent > 1000) {
+    int encoded = TO_encode(&to, to_buf, MAX_TO_SIZE);
+    if (encoded == 0) {
+      Serial.println("0-value TO");
+    } else {
+      Serial.print("TO: ");
+      for(int n = 0; n < encoded; n++) {
+        Serial.print(' ');
+        Serial.print(to_buf[n], HEX);
+      }
+      Serial.println();
+    }
+    Serial.println("PING");
+    strncpy(cmd, "PING", 4);
+    cmd[4] = 0;
+    
+    rf69.send((uint8_t *)cmd, strlen(cmd));
+    rf69.waitPacketSent();
+    lastSent = millis(); 
+  }
 
   uint8_t n = 0;
   
@@ -102,6 +142,7 @@ void loop() {
     while (Serial.available() > 0) {
       Serial.read();
     }
+    
   }
 
   if (rf69.available()) {  
@@ -126,6 +167,23 @@ void loop() {
       }
   }
 
+  int iv = analogRead(0);
+  
+  if (iv < 512 && impact == 0) {
+    impact = millis();
+    Serial.println("IMPACT");
+    strncpy(cmd, "IMPACT", 6);
+    cmd[6] = 0;
+    
+    rf69.send((uint8_t *)cmd, strlen(cmd));
+    rf69.waitPacketSent();
+
+    motorASpeed = 0;
+    motorBSpeed = 0;
+  } else if (iv > 512 && millis() - impact > 500) {
+    impact = 0;
+  }
+
   setMotor(0, motorASpeed);
   setMotor(1, motorBSpeed);
 }
@@ -146,6 +204,22 @@ bool parseCmd(char *cmd) {
     if (v1 > 0 && v1 < 256) {
       motorASpeed = -v1;
       motorBSpeed = -v1;
+
+      return true;
+    }
+  } else if (strncmp(cmd, "RT ", 3) == 0) {
+    v1 = atoi(cmd+3);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = v1;
+      motorBSpeed = -v1;
+
+      return true;
+    }
+  } else if (strncmp(cmd, "LT ", 3) == 0) {
+    v1 = atoi(cmd+3);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = -v1;
+      motorBSpeed = v1;
 
       return true;
     }
