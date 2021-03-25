@@ -91,12 +91,12 @@ static char * all_tests() {
 int main(int argc, char **argv) {
     char *result = all_tests();
     if (result != 0) {
-        printf("%s\n", result);
+        printf("test_to: %s\n", result);
     }
     else {
-        printf("ALL TESTS PASSED\n");
+        printf("test_to: passed\n");
     }
-    printf("Tests run: %d\n", tests_run);
+    printf("test_to: ran %d tests\n", tests_run);
 
     return result != 0;
 }
