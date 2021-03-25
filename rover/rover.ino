@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "to.h"
+#include "com.h"
 }
 
 int enablePin[] = {10, 5};
@@ -115,7 +116,8 @@ void loop() {
   }
 
   if (millis() - lastSent > 1000) {
-    int encoded = TO_encode(&to, to_buf, MAX_TO_SIZE);
+    COM_init((struct COM_Msg *)to_buf, COM_TYPE_TO);
+    int encoded = TO_encode(&to, to_buf+sizeof(struct COM_Msg), MAX_TO_SIZE);
     if (encoded == 0) {
       Serial.println("0-value TO");
     } else {
