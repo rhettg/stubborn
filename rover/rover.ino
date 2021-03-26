@@ -37,11 +37,12 @@ int motorBSpeed = 0;
 unsigned long lastTOSync = 0;
 
 #define ERR_UNKNOWN  1
-#define ERR_RFM_INIT 2
-#define ERR_RFM_FREQ 3 
-#define ERR_RFM_RECV 4 
-#define ERR_TO_SET   10 
-#define ERR_COM_SEND 20 
+#define ERR_CMD      2
+#define ERR_RFM_INIT 5
+#define ERR_RFM_FREQ 6
+#define ERR_RFM_RECV 7
+#define ERR_TO_SET   10
+#define ERR_COM_SEND 20
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
@@ -93,9 +94,9 @@ void setup() {
   // ishighpowermodule flag set like this:
   rf69.setTxPower(20, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
 
-  Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
-
   EVT_subscribe(&evt, &rfm_notify);
+
+  Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
 
   for (int motor = 0; motor < 2; motor++) {
     pinMode(enablePin[motor], OUTPUT);
@@ -105,6 +106,8 @@ void setup() {
 
   setMotor(0, 0);
   setMotor(1, 0);
+
+  EVT_subscribe(&evt, &ci_notify);
 
   Serial.println("Ready");
 }
@@ -201,6 +204,48 @@ void setMotor(int motor, int speed) {
   }
   
   analogWrite(enablePin[motor], out);
+}
+
+#define CI_CMD_NOOP  1
+#define CI_CMD_CLEAR 2
+#define CI_CMD_ERROR 3
+
+#define CI_R_OK            0
+#define CI_R_ERR_NOT_FOUND 1
+#define CI_R_ERR_FAILED    2
+
+void ci_notify(EVT_Event_t *evt)
+{
+  if (COM_EVT_TYPE_CI != evt->type) {
+    return;
+  }
+
+  COM_CI_Event_t *ci_evt = (COM_CI_Event_t *)evt;
+
+  uint8_t result = CI_R_ERR_NOT_FOUND;
+
+  // XXX: rewrite to avoid switch ? (they generate inefficient lookup tables consuming SRAM)
+  switch(ci_evt->frame->cmd) {
+    case CI_CMD_NOOP:
+      result = CI_R_OK;
+      break;
+    case CI_CMD_CLEAR:
+      if (0 != TO_set(&to, TO_PARAM_ERROR, 0)) {
+        result = CI_R_ERR_FAILED;
+        Error(ERR_TO_SET);
+      } else {
+        result = CI_R_OK;
+      }
+      break;
+    case CI_CMD_ERROR:
+      result = CI_R_ERR_FAILED;
+      Error(ERR_CMD);
+      break;
+  }
+
+  if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, result)) {
+    Error(ERR_COM_SEND);
+  }
 }
 
 void handleCmd()
