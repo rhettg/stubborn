@@ -3,18 +3,19 @@
 
 #include <stdint.h>
 
-struct TO_Object {
+#define TO_MAX_PARAMS 16
+
+typedef struct {
     uint8_t  param;
     uint32_t data;
-};
+} TO_Object_t;
 
-struct TO {
-    struct TO_Object *objects;
+typedef struct {
+    TO_Object_t objects[TO_MAX_PARAMS];
     int count;
-};
+} TO_t;
 
-int TO_init(struct TO *to, int count);
-//int TO_set(struct TO *to, int param, uint8_t value);
-int TO_set(struct TO *to, uint8_t param, uint32_t value);
-size_t TO_encode(struct TO *to, uint8_t *buf, size_t size);
+int TO_init(TO_t *to);
+int TO_set(TO_t *to, uint8_t param, uint32_t value);
+size_t TO_encode(TO_t *to, uint8_t *buf, size_t size);
 #endif

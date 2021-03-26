@@ -3,26 +3,20 @@
 #include <string.h>
 #include "to.h"
 
-int TO_init(struct TO *to, int count)
+int TO_init(TO_t *to)
 {
     if (to == NULL) {
         return -1;
     }
 
-    to->objects = malloc(count * sizeof(struct TO_Object));
-    if (to->objects == NULL) {
-        return -1;
-    }
+    memset(to->objects, 0, TO_MAX_PARAMS * sizeof(TO_Object_t));
 
-    memset(to->objects, 0, count * sizeof(struct TO_Object));
-
-    to->count = count;
     return 0;
 }
 
-int TO_set(struct TO *to, uint8_t param, uint32_t value)
+int TO_set(TO_t *to, uint8_t param, uint32_t value)
 {
-    for (int n = 0; n < to->count; n++) {
+    for (int n = 0; n < TO_MAX_PARAMS; n++) {
         if (to->objects[n].param == 0) {
             to->objects[n].param = param;
         }
@@ -36,22 +30,22 @@ int TO_set(struct TO *to, uint8_t param, uint32_t value)
     return -1;
 }
 
-size_t TO_encode(struct TO *to, uint8_t *buf, size_t size)
+size_t TO_encode(TO_t *to, uint8_t *buf, size_t size)
 {
     size_t available = size;
 
-    for (int n = 0; n < to->count; n++) {
+    for (int n = 0; n < TO_MAX_PARAMS; n++) {
         if (to->objects[n].param == 0) {
             continue;
         }
 
-        if (available < sizeof(struct TO_Object)) {
+        if (available < sizeof(TO_Object_t)) {
             continue;
         }
 
-        memcpy(buf, &(to->objects[n]), sizeof(struct TO_Object));
-        buf += sizeof(struct TO_Object);
-        available -= sizeof(struct TO_Object);
+        memcpy(buf, &(to->objects[n]), sizeof(TO_Object_t));
+        buf += sizeof(TO_Object_t);
+        available -= sizeof(TO_Object_t);
     }
 
     return size - available;

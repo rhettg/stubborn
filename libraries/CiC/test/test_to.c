@@ -22,31 +22,33 @@ static char * test_bar() {
 */
 
 static char * test_init() {
-    struct TO to;
-    int r = TO_init(&to, 5);
+    TO_t to;
+    int r = TO_init(&to);
     mu_assert("failed to init", r == 0);
     return 0;
 }
 
 static char * test_set() {
-    struct TO to;
-    int r = TO_init(&to, 1);
+    TO_t to;
+    int r = TO_init(&to);
     mu_assert("failed to init", r == 0);
 
     uint8_t v = 42;
 
-    r = TO_set(&to, 1, v);
-    mu_assert("failed to set 0", r == 0);
+    for (int n = 1; n < TO_MAX_PARAMS + 1; n++) {
+        r = TO_set(&to, n, v);
+        mu_assert("failed to set 0", r == 0);
+    }
 
-    r = TO_set(&to, 4, v);
-    mu_assert("should have failed to set 4", r == -1);
+    r = TO_set(&to, 128, v);
+    mu_assert("should have failed to set 128", r == -1);
 
     return 0;
 }
 
 static char * test_empty_encode() {
-    struct TO to;
-    int r = TO_init(&to, 0);
+    TO_t to;
+    int r = TO_init(&to);
     mu_assert("failed to init", r == 0);
 
     uint8_t *data = NULL;
@@ -59,8 +61,8 @@ static char * test_empty_encode() {
 }
 
 static char * test_encode() {
-    struct TO to;
-    int r = TO_init(&to, 2);
+    TO_t to;
+    int r = TO_init(&to);
     mu_assert("failed to init", r == 0);
 
     uint8_t v = 42;
