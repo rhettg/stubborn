@@ -1,4 +1,5 @@
-#ifndef EVT_H
+#ifndef EVT_h
+#define EVT_h
 #include <stdint.h>
 
 #define EVT_MAX_HANDLERS 8 

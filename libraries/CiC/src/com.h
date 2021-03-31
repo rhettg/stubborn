@@ -1,4 +1,5 @@
-#ifndef COM_H
+#ifndef COM_h
+#define COM_h
 #include <stdint.h>
 #include <stdlib.h>
 #include "evt.h"
@@ -35,7 +36,7 @@ typedef struct {
 } COM_CI_Frame_t;
 
 typedef struct {
-    EVT_Event_t evt;
+    EVT_Event_t event;
     COM_CI_Frame_t *frame;
     uint8_t *data;
     size_t length;
@@ -47,18 +48,18 @@ typedef struct {
 } COM_CI_R_Frame_t;
 
 typedef struct {
-    EVT_Event_t evt;
+    EVT_Event_t event;
     COM_CI_R_Frame_t *frame;
 } COM_CI_R_Event_t;
 
 typedef struct {
-    EVT_Event_t evt;
+    EVT_Event_t event;
     uint8_t *data;
     size_t length;
 } COM_TO_Event_t;
 
 typedef struct {
-    EVT_Event_t evt;
+    EVT_Event_t event;
     uint8_t *data;
     size_t length;
 } COM_Data_Event_t;
