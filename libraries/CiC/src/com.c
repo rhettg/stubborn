@@ -33,33 +33,44 @@ void COM_notify(EVT_Event_t *evt)
 
 int COM_recv(COM_t *com, uint8_t *data, size_t length)
 {
-    if (length < sizeof(COM_Frame_t)) {
+    uint8_t *payload = data;
+    size_t payload_length = length;
+
+    if (payload_length < sizeof(COM_Frame_t)) {
         return 0;
     }
 
-    COM_Frame_t *frame = (COM_Frame_t *)data;
+    COM_Frame_t *frame = (COM_Frame_t *)payload;
     if (COM_VERSION != COM_version(frame)) {
         return -1;
     }
 
+    payload = payload + sizeof(COM_Frame_t);
+    payload_length = length - sizeof(COM_Frame_t);
+
     COM_CI_Event_t   ci_evt;
+    ci_evt.event.type = COM_EVT_TYPE_CI;
+
     COM_CI_R_Event_t ci_r_evt;
+    ci_r_evt.event.type = COM_EVT_TYPE_CI_R;
+
     COM_TO_Event_t   to_evt;
+    to_evt.event.type = COM_EVT_TYPE_TO;
 
     switch (COM_type(frame)) {
         case COM_TYPE_CI:
-            ci_evt.frame = (COM_CI_Frame_t *)data;
-            ci_evt.data = data + sizeof(COM_CI_Frame_t);
+            ci_evt.frame = (COM_CI_Frame_t *)payload;
+            ci_evt.data = payload + sizeof(COM_CI_Frame_t);
             ci_evt.length = length - sizeof(COM_CI_Frame_t);
             EVT_notify(com->evt, (EVT_Event_t *)&ci_evt);
             return 0;
         case COM_TYPE_CI_R:
-            ci_r_evt.frame = (COM_CI_R_Frame_t *)data;
+            ci_r_evt.frame = (COM_CI_R_Frame_t *)payload;
             EVT_notify(com->evt, (EVT_Event_t *)&ci_r_evt);
             return 0;
         case COM_TYPE_TO:
-            to_evt.data = data;
-            to_evt.length = length;
+            to_evt.data = payload;
+            to_evt.length = payload_length;
             EVT_notify(com->evt, (EVT_Event_t *)&to_evt);
             return 0;
     }

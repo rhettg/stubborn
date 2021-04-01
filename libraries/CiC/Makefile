@@ -24,9 +24,10 @@ build/%.o: %.c $(HEADERS)
 build/test_%: test_%.c $(OBJECTS)
 	$(CC) $(CFLAGS) $< $(OBJECTS) -Wall $(LIBS) -o $@
 
-test: build/test_to build/test_evt
+test: build/test_to build/test_evt build/test_com
 	./build/test_to
 	./build/test_evt
+	./build/test_com
 
 clean:
 	-rm -f $(OBJDIR)/*.o $(TARGET)
