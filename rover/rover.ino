@@ -145,7 +145,7 @@ void loop() {
 
     motorASpeed = 0;
     motorBSpeed = 0;
-  } else if (iv > 512 && millis() - impactStart > 500) {
+  } else if (impactStart > 0 && iv > 512 && millis() - impactStart > 500) {
     impactStart = 0;
 
     if (0 > TO_set(&to, TO_PARAM_IMPACT, 0)) {
@@ -184,6 +184,11 @@ void rfm_notify(EVT_Event_t *evt) {
   }
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
+
+  Serial.print("Sending ");
+  Serial.print(d_evt->length);
+  Serial.println();
+
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
 }
