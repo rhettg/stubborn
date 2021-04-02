@@ -45,8 +45,8 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length)
         return -1;
     }
 
-    payload = payload + sizeof(COM_Frame_t);
-    payload_length = length - sizeof(COM_Frame_t);
+    payload += sizeof(COM_Frame_t);
+    payload_length -= sizeof(COM_Frame_t);
 
     COM_CI_Event_t   ci_evt;
     ci_evt.event.type = COM_EVT_TYPE_CI;
@@ -142,8 +142,8 @@ int COM_send_to(COM_t *com, uint8_t *data, size_t length)
     buf_size -= length;
 
     evt.event.type = COM_EVT_TYPE_DATA;
-    evt.data = (uint8_t *)frame;
-    evt.length = sizeof(com->data_buf) - buf_size;
+    evt.data = com->data_buf;
+    evt.length = sizeof(COM_Frame_t) + length;
 
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
