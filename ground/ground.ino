@@ -78,6 +78,7 @@ void setup() {
   Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
 
   EVT_subscribe(&evt, &rfm_notify);
+  EVT_subscribe(&evt, &to_notify);
 
   cmd = (char*)malloc(MAX_CMD);
   recv = (char*)malloc(MAX_CMD);
@@ -128,6 +129,7 @@ void loop() {
 
     if (!rf69.recv(rf_buf, &n)) {
       Error(ERR_RFM_RECV);
+      return;
     }
 
     int cret = COM_recv(&com, rf_buf, n);
@@ -139,11 +141,15 @@ void loop() {
         Serial.print(' ');
       }
       Error(ERR_COM_RECV);
+      return;
     }
 
     Serial.print("RSSI: ");
     Serial.print(rf69.lastRssi());
-    Serial.println(" dBM");
+    Serial.print(" dBM");
+    Serial.print(" recv: ");
+    Serial.print(n);
+    Serial.println();
   }
 }
 
@@ -163,16 +169,19 @@ void to_notify(EVT_Event_t *evt) {
   }
 
   COM_TO_Event_t *to_evt = (COM_TO_Event_t *)evt;
+  TO_Object_t *obj = (TO_Object_t *)to_evt->data;
+
+  Serial.print("-> ");
 
   size_t sizeRemaining = to_evt->length;
-  TO_Object_t *obj = (TO_Object_t *)to_evt->data;
-  while (sizeRemaining <= sizeof(TO_Object_t)) {
+  
+  while (sizeRemaining >= sizeof(TO_Object_t)) {
     Serial.print(obj->param, HEX);
     Serial.print(':');
     Serial.print(obj->data, HEX);
     Serial.print(' ');
 
-    obj = obj+sizeof(TO_Object_t);
+    obj++;
     sizeRemaining = sizeRemaining - sizeof(TO_Object_t);
   }
 
