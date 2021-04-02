@@ -70,11 +70,20 @@ static char * test_encode() {
     r = TO_set(&to, 1, v);
     mu_assert("failed to set 0", r == 0);
 
+    TO_set(&to, 2, 1024);
+
     uint8_t *data = malloc(1024);
 
     int encoded = TO_encode(&to, data, 1024);
-    //mu_assert("failed to set data", data != NULL);
-    mu_assert("test_encode: failed to set size", encoded > 0);
+    mu_assert("test_encode: wrong size", encoded == sizeof(TO_Object_t)*2);
+
+    TO_Object_t *tobj = (TO_Object_t *)data;
+    mu_assert("test_encode: wrong param", tobj->param == 1);
+    mu_assert("test_encode: wrong value", tobj->data == 42);
+
+    tobj++;
+    mu_assert("test_encode: wrong param 2", tobj->param == 2);
+    mu_assert("test_encode: wrong value 2", tobj->data == 1024);
 
     free(data);
 

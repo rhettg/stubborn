@@ -33,9 +33,10 @@ int TO_set(TO_t *to, uint8_t param, uint32_t value)
 size_t TO_encode(TO_t *to, uint8_t *buf, size_t size)
 {
     size_t available = size;
+    uint8_t *b = buf;
 
     for (int n = 0; n < TO_MAX_PARAMS; n++) {
-        if (to->objects[n].param == 0) {
+        if (0 == to->objects[n].param) {
             continue;
         }
 
@@ -43,10 +44,10 @@ size_t TO_encode(TO_t *to, uint8_t *buf, size_t size)
             continue;
         }
 
-        memcpy(buf, &(to->objects[n]), sizeof(TO_Object_t));
-        buf += sizeof(TO_Object_t);
+        memcpy(b, &(to->objects[n]), sizeof(TO_Object_t));
+        b += sizeof(TO_Object_t);
         available -= sizeof(TO_Object_t);
     }
 
-    return size - available;
+    return b - buf;
 }

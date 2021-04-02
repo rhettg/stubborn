@@ -12,7 +12,6 @@ typedef struct {
 
 typedef struct {
     TO_Object_t objects[TO_MAX_PARAMS];
-    int count;
 } TO_t;
 
 int TO_init(TO_t *to);
