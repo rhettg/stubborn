@@ -60,8 +60,13 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length)
     switch (COM_type(frame)) {
         case COM_TYPE_CI:
             ci_evt.frame = (COM_CI_Frame_t *)payload;
-            ci_evt.data = payload + sizeof(COM_CI_Frame_t);
             ci_evt.length = length - sizeof(COM_CI_Frame_t);
+            if (ci_evt.length > 0) {
+                ci_evt.data = payload + sizeof(COM_CI_Frame_t);
+            } else {
+                ci_evt.data = NULL;
+            }
+
             EVT_notify(com->evt, (EVT_Event_t *)&ci_evt);
             return 0;
         case COM_TYPE_CI_R:
@@ -81,28 +86,31 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length)
 int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t length)
 {
     COM_Data_Event_t evt;
+    evt.event.type = COM_EVT_TYPE_DATA;
+    evt.data = com->data_buf;
+    evt.length = 0;
 
-    size_t buf_size = sizeof(com->data_buf);
+    uint8_t *payload = com->data_buf;
 
-    COM_Frame_t *frame = (COM_Frame_t *)com->data_buf;
+    COM_Frame_t *frame = (COM_Frame_t *)payload;
     frame->header = encode_header(COM_TYPE_CI);
-    buf_size -= sizeof(COM_Frame_t);
+    evt.length += sizeof(COM_Frame_t);
+    payload += sizeof(COM_Frame_t);
 
-    COM_CI_Frame_t *ci_frame = (COM_CI_Frame_t *)frame+sizeof(COM_Frame_t);
+    COM_CI_Frame_t *ci_frame = (COM_CI_Frame_t *)payload;
     ci_frame->cmd = cmd;
     ci_frame->cmd_num = cmd_num;
-    buf_size -= sizeof(COM_CI_Frame_t);
+    evt.length += sizeof(COM_CI_Frame_t);
+    payload += sizeof(COM_CI_Frame_t);
 
-    if (length > buf_size) {
+    if (evt.length + length > sizeof(com->data_buf)) {
         return -1;
     }
 
-    memcpy(ci_frame+sizeof(COM_CI_Frame_t), data, length);
-    buf_size -= length;
+    memcpy(payload, data, length);
+    evt.length += length;
+    payload += length;
 
-    evt.event.type = COM_EVT_TYPE_DATA;
-    evt.data = com->data_buf;
-    evt.length = sizeof(com->data_buf) - buf_size;
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
     return 0;
@@ -111,16 +119,22 @@ int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t 
 int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result)
 {
     COM_Data_Event_t evt;
-
-    COM_Frame_t *frame = (COM_Frame_t *)com->data_buf;
-    frame->header = encode_header(COM_TYPE_CI);
-
-    COM_CI_R_Frame_t *ci_r_frame = (COM_CI_R_Frame_t *)frame+sizeof(COM_Frame_t);
-    ci_r_frame->cmd_num = cmd_num;
-
     evt.event.type = COM_EVT_TYPE_DATA;
-    evt.data = (uint8_t *)frame;
-    evt.length = sizeof(COM_Frame_t) + sizeof(COM_CI_R_Frame_t);
+    evt.data = com->data_buf;
+    evt.length = 0;
+
+    uint8_t *payload = com->data_buf;
+
+    COM_Frame_t *frame = (COM_Frame_t *)payload;
+    frame->header = encode_header(COM_TYPE_CI_R);
+    evt.length += sizeof(COM_Frame_t);
+    payload += sizeof(COM_Frame_t);
+
+    COM_CI_R_Frame_t *ci_r_frame = (COM_CI_R_Frame_t *)payload;
+    ci_r_frame->cmd_num = cmd_num;
+    evt.length += sizeof(COM_CI_R_Frame_t);
+    payload += sizeof(COM_CI_R_Frame_t);
+
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
     return 0;
@@ -129,21 +143,24 @@ int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result)
 int COM_send_to(COM_t *com, uint8_t *data, size_t length)
 {
     COM_Data_Event_t evt;
-    size_t buf_size = sizeof(com->data_buf);
+    evt.event.type = COM_EVT_TYPE_DATA;
+    evt.data = com->data_buf;
+    evt.length = 0;
 
-    COM_Frame_t *frame = (COM_Frame_t *)com->data_buf;
+    uint8_t *payload = com->data_buf;
+
+    COM_Frame_t *frame = (COM_Frame_t *)payload;
     frame->header = encode_header(COM_TYPE_TO);
+    evt.length += sizeof(COM_Frame_t);
+    payload += sizeof(COM_Frame_t);
 
-    if (length > sizeof(com->data_buf)) {
+    if (evt.length + length > sizeof(com->data_buf)) {
         return -1;
     }
 
-    memcpy(com->data_buf+sizeof(COM_Frame_t), data, length);
-    buf_size -= length;
-
-    evt.event.type = COM_EVT_TYPE_DATA;
-    evt.data = com->data_buf;
-    evt.length = sizeof(COM_Frame_t) + length;
+    memcpy(payload, data, length);
+    evt.length += length;
+    payload += length;
 
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
