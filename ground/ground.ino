@@ -105,13 +105,13 @@ void loop() {
   if (millis() - last_cmd > 5000) {
     last_cmd = millis(); 
     if (0 == serialNotify()) {
-      Serial.println("[AUTO NOOP]");
+      Serial.println("[AUTO BOOM]");
       Serial.print("<- ");
-      dispatchCommand("NOOP");
+      dispatchCommand("BOOM");
       Serial.print("-> ");
     }
   }
-*/
+  */
 
   if (Serial.available() > 0) {
     if (0 != getCommandLineFromSerialPort()) {
