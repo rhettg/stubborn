@@ -5,6 +5,7 @@
 extern "C" {
 #include "to.h"
 #include "com.h"
+#include "ci.h"
 }
 
 uint8_t enablePin[] = {10, 5};
@@ -43,6 +44,7 @@ unsigned long lastTOSync = 0;
 #define ERR_RFM_RECV 7
 #define ERR_TO_SET   10
 #define ERR_COM_SEND 20
+#define ERR_CI_REGISTER 30
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
@@ -53,6 +55,7 @@ unsigned long impactStart = 0;
 TO_t to   = {0};
 EVT_t evt = {0};
 COM_t com = {0};
+CI_t ci = {0};
 
 void setup() {
   // put your setup code here, to run once:
@@ -62,6 +65,7 @@ void setup() {
 
   EVT_init(&evt);
   com.evt = &evt;
+  ci.evt = &evt;
 
   EVT_subscribe(&evt, &debugEvent);
 
@@ -107,7 +111,17 @@ void setup() {
   setMotor(0, 0);
   setMotor(1, 0);
 
-  EVT_subscribe(&evt, &ci_notify);
+  EVT_subscribe(&evt, &com_ci_notify);
+
+  if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
+    Error(ERR_CI_REGISTER);
+  }
+  if (0 != CI_register(&ci, CI_CMD_CLEAR, &handleCmdClear)) {
+    Error(ERR_CI_REGISTER);
+  }
+  if (0 != CI_register(&ci, CI_CMD_BOOM, &handleCmdBoom)) {
+    Error(ERR_CI_REGISTER);
+  }
 
   Serial.println("Ready");
 }
@@ -193,14 +207,13 @@ void rfm_notify(EVT_Event_t *evt) {
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
 
-/*
   Serial.print("Sending ");
   Serial.print(d_evt->length);
   Serial.println();
   for(int i = 0; i < d_evt->length; i++) {
     Serial.print(d_evt->data[i], HEX); Serial.print(' ');
   }
- */
+  Serial.println();
 
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
@@ -224,15 +237,7 @@ void setMotor(int motor, int speed) {
   analogWrite(enablePin[motor], out);
 }
 
-#define CI_CMD_NOOP  1
-#define CI_CMD_CLEAR 2
-#define CI_CMD_ERROR 3
-
-#define CI_R_OK            0
-#define CI_R_ERR_NOT_FOUND 1
-#define CI_R_ERR_FAILED    2
-
-void ci_notify(EVT_Event_t *evt)
+void com_ci_notify(EVT_Event_t *evt)
 {
   if (COM_EVT_TYPE_CI != evt->type) {
     return;
@@ -240,37 +245,30 @@ void ci_notify(EVT_Event_t *evt)
 
   COM_CI_Event_t *ci_evt = (COM_CI_Event_t *)evt;
 
-  uint8_t result = CI_R_ERR_NOT_FOUND;
-
-  // XXX: rewrite to avoid switch ? (they generate inefficient lookup tables consuming SRAM)
-  switch(ci_evt->frame->cmd) {
-    case CI_CMD_NOOP:
-      result = CI_R_OK;
-      break;
-    case CI_CMD_CLEAR:
-      if (0 != TO_set(&to, TO_PARAM_ERROR, 0)) {
-        result = CI_R_ERR_FAILED;
-        Error(ERR_TO_SET);
-      } else {
-        result = CI_R_OK;
-      }
-      break;
-    case CI_CMD_ERROR:
-      result = CI_R_ERR_FAILED;
-      Error(ERR_CMD);
-      break;
-  }
-
-  if (CI_R_ERR_NOT_FOUND == result) {
-    Serial.print("Command ");
-    Serial.print(ci_evt->frame->cmd_num);
-    Serial.print(" unknown type: ");
-    Serial.print(ci_evt->frame->cmd);
-    Serial.println();
-  }
-
-  if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, result)) {
+  int r = CI_ingest(&ci, ci_evt->frame->cmd, ci_evt->data);
+  if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, r)) {
     Error(ERR_COM_SEND);
+  }
+}
+
+int handleCmdNoOp(uint8_t data[CI_MAX_DATA])
+{
+  return CI_R_OK;
+}
+
+int handleCmdBoom(uint8_t data[CI_MAX_DATA])
+{
+  Error(ERR_CMD);
+  return CI_R_ERR_FAILED;
+}
+
+int handleCmdClear(uint8_t data[CI_MAX_DATA])
+{
+  if (0 != TO_set(&to, TO_PARAM_ERROR, 0)) {
+    Error(ERR_TO_SET);
+    return CI_R_ERR_FAILED;
+  } else {
+    return CI_R_OK;
   }
 }
 
