@@ -52,7 +52,7 @@ int CI_ack(CI_t *ci, unsigned long cmd_num, uint8_t result, unsigned long ack_at
 
 int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA])
 {
-    if (cmd > CI_MAX_DATA) {
+    if (cmd > CI_MAX_CMDS) {
         return -1;
     }
 
@@ -65,7 +65,7 @@ int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA])
 
 int CI_register(CI_t *ci, uint8_t cmd, int(*handler)(uint8_t[CI_MAX_DATA]))
 {
-    if (cmd > CI_MAX_DATA) {
+    if (cmd > CI_MAX_CMDS) {
         return -1;
     }
 
