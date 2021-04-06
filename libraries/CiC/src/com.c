@@ -132,6 +132,7 @@ int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result)
 
     COM_CI_R_Frame_t *ci_r_frame = (COM_CI_R_Frame_t *)payload;
     ci_r_frame->cmd_num = cmd_num;
+    ci_r_frame->result = result;
     evt.length += sizeof(COM_CI_R_Frame_t);
     payload += sizeof(COM_CI_R_Frame_t);
 
