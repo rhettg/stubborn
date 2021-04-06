@@ -8,10 +8,8 @@ extern "C" {
 #include "to.h"
 };
 
-char *cmd = NULL;
-char *recv = NULL;
-
-#define MAX_CMD       64
+int cmd_num = 0;
+unsigned long last_cmd = 0;
 
 #define RFM69_INT     3  // 
 #define RFM69_CS      4  //
@@ -19,8 +17,6 @@ char *recv = NULL;
 #define LED 13
 
 #define RF69_FREQ 915.0
-
-unsigned long lastCmd = 0;
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 int16_t packetnum = 0;  // packet counter, we increment per xmission
@@ -39,6 +35,21 @@ COM_t com = {0};
 #define ERR_COM_SEND 20
 #define ERR_COM_RECV 21
 
+#define CI_CMD_NOOP  1
+#define CI_CMD_CLEAR 2
+#define CI_CMD_BOOM  3
+
+typedef struct {
+  uint8_t cmd;
+  uint8_t data[4];
+} Command_t;
+
+Command_t cmd = {0};
+
+#define MAX_COMMAND_LENGTH        25
+char commandLine[MAX_COMMAND_LENGTH + 1];  // read commands into this buffer from Serial.
+uint8_t commandLineChars = 0;              // number of characters read into buffer
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -48,7 +59,7 @@ void setup() {
   EVT_init(&evt);
   com.evt = &evt;
 
-  EVT_subscribe(&evt, &debugEvent);
+  // EVT_subscribe(&evt, &debugEvent);
 
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
@@ -79,11 +90,10 @@ void setup() {
 
   EVT_subscribe(&evt, &rfm_notify);
   EVT_subscribe(&evt, &to_notify);
-
-  cmd = (char*)malloc(MAX_CMD);
-  recv = (char*)malloc(MAX_CMD);
+  EVT_subscribe(&evt, &ci_r_notify);
 
   Serial.println("Ready");
+  Serial.print("-> ");
 }
 
 bool running = false;
@@ -91,37 +101,28 @@ bool running = false;
 void loop() {
   uint8_t n = 0;
 
-  /*
-  if (millis() - lastCmd > 5000) {
-    lastCmd = millis(); 
-    if (running) {
-      n = 4;
-      strncpy(cmd, "STOP", n);
-    } else {
-      n = 7;
-      strncpy(cmd, "FWD 255", n);  
+/*
+  if (millis() - last_cmd > 5000) {
+    last_cmd = millis(); 
+    if (0 == serialNotify()) {
+      Serial.println("[AUTO NOOP]");
+      Serial.print("<- ");
+      dispatchCommand("NOOP");
+      Serial.print("-> ");
     }
-    running = !running;
   }
-  */
-  
-  if (Serial.available() > 0) {
-    n = Serial.readBytesUntil('\n', cmd, MAX_CMD);
-    while (Serial.available() > 0) {
-      Serial.read();
-    }
-    
-    lastCmd = millis();
-  }
+*/
 
-  if (n > 0) {
-    cmd[n] = 0;
+  if (Serial.available() > 0) {
+    if (0 != getCommandLineFromSerialPort()) {
+      return;
+    }
+
+    if (0 != commandLine[0]) {
+      Serial.print("<- ");
+      dispatchCommand(commandLine);
+    }
     Serial.print("-> ");
-    Serial.print(cmd);
-    
-    rf69.send((uint8_t *)cmd, strlen(cmd));
-    rf69.waitPacketSent();
-    Serial.println(" [SENT]");
   }
 
   if (rf69.available()) {  
@@ -144,12 +145,32 @@ void loop() {
       return;
     }
 
+/*
     Serial.print("RSSI: ");
     Serial.print(rf69.lastRssi());
     Serial.print(" dBM");
     Serial.print(" recv: ");
     Serial.print(n);
     Serial.println();
+    */
+  }
+}
+
+void dispatchCommand(char *s)
+{
+  if (0 == parseCmd(s, &cmd)) {
+    // TODO: constant for command size
+    if (0 != COM_send_ci(&com, cmd.cmd, ++cmd_num, cmd.data, 4)) {
+      Serial.println("[ERR Sending]");
+    } else {
+      Serial.print("[SENT "); 
+      Serial.print(cmd_num);
+      Serial.println("]");
+    }
+  } else {
+    Serial.print("[ERR Parsing '");
+    Serial.print(s);
+    Serial.println("']");
   }
 }
 
@@ -159,6 +180,12 @@ void rfm_notify(EVT_Event_t *evt) {
   }
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
+  /*
+  Serial.print("Sending "); Serial.print(d_evt->length); Serial.print(" bytes");
+  for(int i = 0; i < d_evt->length; i++) {
+    Serial.print(d_evt->data[i], HEX); Serial.print(' ');
+  }
+  */
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
 }
@@ -167,6 +194,9 @@ void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_TO != evt->type) {
     return;
   }
+
+  // XXX remove
+  return;
 
   COM_TO_Event_t *to_evt = (COM_TO_Event_t *)evt;
   TO_Object_t *obj = (TO_Object_t *)to_evt->data;
@@ -188,16 +218,161 @@ void to_notify(EVT_Event_t *evt) {
   Serial.println();
 }
 
+#define CI_R_OK            0
+#define CI_R_ERR_NOT_FOUND 1
+#define CI_R_ERR_FAILED    2
+
+void ci_r_notify(EVT_Event_t *evt) {
+  if (COM_EVT_TYPE_CI_R != evt->type) {
+    return;
+  }
+
+  COM_CI_R_Event_t *r_evt = (COM_CI_R_Event_t *)evt;
+  if (0 != serialNotify()) {
+    return;
+  }
+
+  Serial.print("[");
+  Serial.print(r_evt->frame->cmd_num);
+  if (CI_R_OK == r_evt->frame->result) {
+    Serial.print(" OK");
+  } 
+  else {
+    Serial.print(" ERR ");
+    Serial.print(r_evt->frame->result);
+  }
+  Serial.println("]");
+
+}
+
 void debugEvent(EVT_Event_t *e)
 {
-  Serial.print("Event: ");
-  Serial.println(e->type);
+  if (0 == serialNotify()) {
+    Serial.print("Event: ");
+    Serial.println(e->type);
+  }
 }
 
 void Error(uint8_t errno) 
 {
-  if (Serial.availableForWrite()) {
+  if (0 == serialNotify()) {
     Serial.print("ERROR: ");
     Serial.println(errno);
   }
+}
+
+int parseCmd(char *s, Command_t *cmd) {
+  uint8_t v1, v2;
+
+  if (strncmp(s, "NOOP", 5) == 0) {
+    cmd->cmd = CI_CMD_NOOP;
+    return 0;
+  } else if (strncmp(s, "CLEAR", 6) == 0) {
+    cmd->cmd = CI_CMD_CLEAR;
+    return 0;
+  } else if (strncmp(s, "BOOM", 5) == 0) {
+    cmd->cmd = CI_CMD_BOOM;
+    return 0;
+  } else if (strncmp(s, "FWD ", 4) == 0) {
+    cmd->cmd = CI_CMD_NOOP;
+    v1 = atoi(s+4);
+    if (v1 > 0 && v1 < 256) {
+      cmd->data[0] = v1;
+
+      return 0;
+    }
+  } else if (strncmp(s, "BCK ", 4) == 0) {
+    v1 = atoi(s+4);
+    if (v1 > 0 && v1 < 256) {
+      cmd->data[0] = v1;
+
+      return 0;
+    }
+  /*
+  } else if (strncmp(cmd_str, "RT ", 3) == 0) {
+    v1 = atoi(cmd+3);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = v1;
+      motorBSpeed = -v1;
+
+      return true;
+    }
+  } else if (strncmp(cmd, "LT ", 3) == 0) {
+    v1 = atoi(cmd+3);
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = -v1;
+      motorBSpeed = v1;
+
+      return true;
+    }
+    */
+  } else if (strncmp(s, "STOP ", 5) == 0) {
+      cmd->data[0] = 0;
+
+      return 0;
+  }
+
+  return ERR_UNKNOWN;
+}
+
+// returns if it's appropriate to notify user on the console
+int serialNotify()
+{
+  if (!Serial.availableForWrite()) {
+    return -1;
+  }
+
+  if (0 != commandLineChars) {
+    return -1;
+  }
+
+  return 0;
+}
+
+#define CR '\r'
+#define LF '\n'
+#define BS '\b'
+#define NULLCHAR '\0'
+#define SPACE ' '
+
+/*************************************************************************************************************
+    getCommandLineFromSerialPort()
+      Return the string of the next command. Commands are delimited by return"
+      Handle BackSpace character
+      Make all chars lowercase
+    
+    Adapted from https://create.arduino.cc/projecthub/mikefarr/simple-command-line-interface-4f0a3f
+*************************************************************************************************************/
+
+int
+getCommandLineFromSerialPort()
+{
+  while (Serial.available()) {
+    char c = Serial.read();
+
+    switch (c) {
+      case CR:      //likely have full command in buffer now, commands are terminated by CR and/or LS
+      case LF:
+        Serial.println();
+        commandLine[commandLineChars] = NULLCHAR;
+        commandLineChars = 0;
+        return 0;
+        break;
+      case BS:
+        if (commandLineChars > 0) {
+          commandLine[--commandLineChars] = NULLCHAR;
+
+          Serial.print(BS); Serial.print(SPACE); Serial.print(BS);
+        }
+        break;
+      default:
+        Serial.print(c);
+        if (commandLineChars < MAX_COMMAND_LENGTH) {
+          commandLine[commandLineChars++] = c;
+        }
+        commandLine[commandLineChars] = NULLCHAR;
+        break;
+    }
+  }
+  return -1;
 }
