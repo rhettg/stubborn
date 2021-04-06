@@ -298,7 +298,7 @@ int parseCICommand(char *s) {
   } else if (strncmp(s, "BOOM", 5) == 0) {
     cmd = CI_CMD_BOOM;
   } else if (strncmp(s, "FWD ", 4) == 0) {
-    cmd = CI_CMD_NOOP;
+    cmd = CI_CMD_FWD;
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
@@ -326,8 +326,9 @@ int parseCICommand(char *s) {
       return true;
     }
     */
-  } else if (strncmp(s, "STOP ", 5) == 0) {
+  } else if (strncmp(s, "STOP", 4) == 0) {
       cmd_data[0] = 0;
+      cmd = CI_CMD_STOP;
   }
 
   if (0 == cmd) {

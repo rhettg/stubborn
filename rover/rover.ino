@@ -122,6 +122,12 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_BOOM, &handleCmdBoom)) {
     Error(ERR_CI_REGISTER);
   }
+  if (0 != CI_register(&ci, CI_CMD_STOP, &handleCmdStop)) {
+    Error(ERR_CI_REGISTER);
+  }
+  if (0 != CI_register(&ci, CI_CMD_FWD, &handleCmdFwd)) {
+    Error(ERR_CI_REGISTER);
+  }
 
   Serial.println("Ready");
 }
@@ -270,6 +276,27 @@ int handleCmdClear(uint8_t data[CI_MAX_DATA])
   } else {
     return CI_R_OK;
   }
+}
+
+int handleCmdStop(uint8_t data[CI_MAX_DATA])
+{
+    motorASpeed = 0;
+    motorBSpeed = 0;
+    return CI_R_OK;
+}
+
+int handleCmdFwd(uint8_t data[CI_MAX_DATA])
+{
+    uint8_t v1 = data[0];
+
+    if (v1 > 0 && v1 < 256) {
+      motorASpeed = v1;
+      motorBSpeed = v1;
+
+      return CI_R_OK;
+    } else {
+      return CI_R_ERR_INVALID;
+    }
 }
 
 void handleCmd()

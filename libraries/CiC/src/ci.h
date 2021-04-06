@@ -6,8 +6,10 @@
 #define CI_CMD_NOOP  1
 #define CI_CMD_CLEAR 2
 #define CI_CMD_BOOM  3
+#define CI_CMD_STOP  4
+#define CI_CMD_FWD   5
 
-#define CI_MAX_CMDS 5
+#define CI_MAX_CMDS 10
 
 #define CI_R_OK            0
 #define CI_R_ERR_INVALID   1 
