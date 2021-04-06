@@ -6,6 +6,7 @@ extern "C" {
 #include "evt.h"
 #include "com.h"
 #include "to.h"
+#include "ci.h"
 };
 
 int cmd_num = 0;
@@ -25,26 +26,22 @@ uint8_t rf_buf[RH_RF69_MAX_MESSAGE_LEN];
 
 EVT_t evt = {0};
 COM_t com = {0};
+CI_t  ci  = {0};
 
 #define ERR_UNKNOWN  1
 #define ERR_CMD      2
+
 #define ERR_RFM_INIT 5
 #define ERR_RFM_FREQ 6
 #define ERR_RFM_RECV 7
+
 #define ERR_TO_SET   10
+
 #define ERR_COM_SEND 20
 #define ERR_COM_RECV 21
 
-#define CI_CMD_NOOP  1
-#define CI_CMD_CLEAR 2
-#define CI_CMD_BOOM  3
-
-typedef struct {
-  uint8_t cmd;
-  uint8_t data[4];
-} Command_t;
-
-Command_t cmd = {0};
+#define ERR_CI_SEND_FAIL 30
+#define ERR_CI_ACK_FAIL  31
 
 #define MAX_COMMAND_LENGTH        25
 char commandLine[MAX_COMMAND_LENGTH + 1];  // read commands into this buffer from Serial.
@@ -58,6 +55,7 @@ void setup() {
 
   EVT_init(&evt);
   com.evt = &evt;
+  ci.evt = &evt;
 
   // EVT_subscribe(&evt, &debugEvent);
 
@@ -91,6 +89,8 @@ void setup() {
   EVT_subscribe(&evt, &rfm_notify);
   EVT_subscribe(&evt, &to_notify);
   EVT_subscribe(&evt, &ci_r_notify);
+  EVT_subscribe(&evt, &ci_ready_notify);
+  EVT_subscribe(&evt, &ci_ack_notify);
 
   Serial.println("Ready");
   Serial.print("-> ");
@@ -158,17 +158,18 @@ void loop() {
 
 void dispatchCommand(char *s)
 {
-  if (0 == parseCmd(s, &cmd)) {
-    // TODO: constant for command size
-    if (0 != COM_send_ci(&com, cmd.cmd, ++cmd_num, cmd.data, 4)) {
-      Serial.println("[ERR Sending]");
-    } else {
-      Serial.print("[SENT "); 
-      Serial.print(cmd_num);
-      Serial.println("]");
-    }
-  } else {
+  int r = parseCICommand(s);
+
+  if (0 == r) {
+    Serial.print("[SENT "); 
+    Serial.print(ci.current.cmd_num);
+    Serial.println("]");
+  } else if (ERR_UNKNOWN == r) {
     Serial.print("[ERR Parsing '");
+    Serial.print(s);
+    Serial.println("']");
+  } else {
+    Serial.print("[ERR issuing command '");
     Serial.print(s);
     Serial.println("']");
   }
@@ -218,31 +219,54 @@ void to_notify(EVT_Event_t *evt) {
   Serial.println();
 }
 
-#define CI_R_OK            0
-#define CI_R_ERR_NOT_FOUND 1
-#define CI_R_ERR_FAILED    2
-
 void ci_r_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_CI_R != evt->type) {
     return;
   }
 
   COM_CI_R_Event_t *r_evt = (COM_CI_R_Event_t *)evt;
+  if (0 != CI_ack(&ci, r_evt->frame->cmd_num, r_evt->frame->result, millis())) {
+    Error(ERR_CI_ACK_FAIL);
+    return;
+  }
+}
+
+void ci_ready_notify(EVT_Event_t *evt) 
+{
+  if (CI_EVT_TYPE_READY != evt->type) {
+    return;
+  }
+
+  CI_Ready_Event_t *ready = (CI_Ready_Event_t *)evt;
+
+  if (0 != COM_send_ci(&com, ready->cmd->cmd, ready->cmd->cmd_num, ready->cmd->data, sizeof(ready->cmd->data))) {
+    Error(ERR_COM_SEND);
+    return;
+  }
+}
+
+void ci_ack_notify(EVT_Event_t *evt) 
+{
+  if (CI_EVT_TYPE_ACK != evt->type) {
+    return;
+  }
+
+  CI_Ack_Event_t *ack = (CI_Ack_Event_t *)evt;
+
   if (0 != serialNotify()) {
     return;
   }
 
   Serial.print("[");
-  Serial.print(r_evt->frame->cmd_num);
-  if (CI_R_OK == r_evt->frame->result) {
+  Serial.print(ack->cmd->cmd_num);
+  if (CI_R_OK == ack->cmd->result) {
     Serial.print(" OK");
   } 
   else {
     Serial.print(" ERR ");
-    Serial.print(r_evt->frame->result);
+    Serial.print(ack->cmd->result);
   }
   Serial.println("]");
-
 }
 
 void debugEvent(EVT_Event_t *e)
@@ -261,32 +285,28 @@ void Error(uint8_t errno)
   }
 }
 
-int parseCmd(char *s, Command_t *cmd) {
+int parseCICommand(char *s) {
+  uint8_t cmd = 0;
+  uint8_t cmd_data[CI_MAX_DATA] = {0,0,0,0};
+
   uint8_t v1, v2;
 
   if (strncmp(s, "NOOP", 5) == 0) {
-    cmd->cmd = CI_CMD_NOOP;
-    return 0;
+    cmd = CI_CMD_NOOP;
   } else if (strncmp(s, "CLEAR", 6) == 0) {
-    cmd->cmd = CI_CMD_CLEAR;
-    return 0;
+    cmd = CI_CMD_CLEAR;
   } else if (strncmp(s, "BOOM", 5) == 0) {
-    cmd->cmd = CI_CMD_BOOM;
-    return 0;
+    cmd = CI_CMD_BOOM;
   } else if (strncmp(s, "FWD ", 4) == 0) {
-    cmd->cmd = CI_CMD_NOOP;
+    cmd = CI_CMD_NOOP;
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
-      cmd->data[0] = v1;
-
-      return 0;
+      cmd_data[0] = v1;
     }
   } else if (strncmp(s, "BCK ", 4) == 0) {
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
-      cmd->data[0] = v1;
-
-      return 0;
+      cmd_data[0] = v1;
     }
   /*
   } else if (strncmp(cmd_str, "RT ", 3) == 0) {
@@ -307,12 +327,18 @@ int parseCmd(char *s, Command_t *cmd) {
     }
     */
   } else if (strncmp(s, "STOP ", 5) == 0) {
-      cmd->data[0] = 0;
-
-      return 0;
+      cmd_data[0] = 0;
   }
 
-  return ERR_UNKNOWN;
+  if (0 == cmd) {
+    return ERR_UNKNOWN;
+  }
+
+  if (0 != CI_prepare_send(&ci, cmd, cmd_data, millis())) {
+    return ERR_CI_SEND_FAIL;
+  }
+
+  return 0;
 }
 
 // returns if it's appropriate to notify user on the console
