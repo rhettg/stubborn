@@ -128,6 +128,14 @@ void loop() {
       Error(ERR_RFM_RECV);
     }
 
+/*
+    Serial.print("Received "); Serial.print(n); Serial.print(" bytes: ");
+    for (int i = 0; i < n; i++) {
+      Serial.print(rf_buf[i], HEX); Serial.print(' ');
+    }
+    Serial.println();
+*/
+
     COM_recv(&com, rf_buf, n);
   }
 
@@ -185,9 +193,14 @@ void rfm_notify(EVT_Event_t *evt) {
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
 
+/*
   Serial.print("Sending ");
   Serial.print(d_evt->length);
   Serial.println();
+  for(int i = 0; i < d_evt->length; i++) {
+    Serial.print(d_evt->data[i], HEX); Serial.print(' ');
+  }
+ */
 
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
@@ -246,6 +259,14 @@ void ci_notify(EVT_Event_t *evt)
       result = CI_R_ERR_FAILED;
       Error(ERR_CMD);
       break;
+  }
+
+  if (CI_R_ERR_NOT_FOUND == result) {
+    Serial.print("Command ");
+    Serial.print(ci_evt->frame->cmd_num);
+    Serial.print(" unknown type: ");
+    Serial.print(ci_evt->frame->cmd);
+    Serial.println();
   }
 
   if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, result)) {
