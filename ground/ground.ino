@@ -12,7 +12,7 @@ extern "C" {
 int cmd_num = 0;
 unsigned long last_cmd = 0;
 
-#define RFM69_INT     3  // 
+#define RFM69_INT     3  //
 #define RFM69_CS      4  //
 #define RFM69_RST     2
 #define LED 13
@@ -46,8 +46,16 @@ CI_t  ci  = {0};
 #define MAX_COMMAND_LENGTH        25
 char commandLine[MAX_COMMAND_LENGTH + 1];  // read commands into this buffer from Serial.
 uint8_t commandLineChars = 0;              // number of characters read into buffer
+//bool prompt = false;
 
-void setup() {
+#define DISPLAY_MODE_NONE   0
+#define DISPLAY_MODE_PROMPT 1
+#define DISPLAY_MODE_RESULT 2
+#define DISPLAY_MODE_TO     5
+int display_mode = DISPLAY_MODE_NONE;
+
+void setup()
+{
   // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
@@ -67,13 +75,13 @@ void setup() {
   delay(10);
   digitalWrite(RFM69_RST, LOW);
   delay(10);
-  
+
   if (!rf69.init()) {
     Serial.println("RFM69 radio init failed");
     while (1);
   }
   Serial.println("RFM69 radio init OK!");
-  
+
   // Defaults after init are 434.0MHz, modulation GFSK_Rb250Fd250, +13dbM (for low power module)
   // No encryption
   if (!rf69.setFrequency(RF69_FREQ)) {
@@ -93,15 +101,37 @@ void setup() {
   EVT_subscribe(&evt, &ci_ack_notify);
 
   Serial.println("Ready");
-  Serial.print("-> ");
 }
 
-void loop() {
+void do_prompt()
+{
+  Serial.println();
+  Serial.print("-> ");
+  display_mode = DISPLAY_MODE_PROMPT;
+}
+
+void do_result()
+{
+  Serial.print("<- ");
+  display_mode = DISPLAY_MODE_RESULT;
+}
+
+void display_none()
+{
+  display_mode = DISPLAY_MODE_NONE;
+}
+
+void loop()
+{
   uint8_t n = 0;
+
+  if (DISPLAY_MODE_NONE == display_mode) {
+    do_prompt();
+  }
 
 /*
   if (millis() - last_cmd > 5000) {
-    last_cmd = millis(); 
+    last_cmd = millis();
     if (0 == serialNotify()) {
       Serial.println("[AUTO BOOM]");
       Serial.print("<- ");
@@ -116,14 +146,14 @@ void loop() {
       return;
     }
 
-    if (0 != commandLine[0]) {
-      Serial.print("<- ");
+    if (0 == commandLine[0]) {
+      display_none();
+    } else {
       dispatchCommand(commandLine);
     }
-    Serial.print("-> ");
   }
 
-  if (rf69.available()) {  
+  if (rf69.available()) {
     n = sizeof(rf_buf);
 
     if (!rf69.recv(rf_buf, &n)) {
@@ -156,13 +186,24 @@ void loop() {
 
 void dispatchCommand(char *s)
 {
+  do_result();
+
   int r = parseCICommand(s);
 
   if (0 == r) {
-    Serial.print("[SENT "); 
+    Serial.print("[SENT ");
     Serial.print(ci.current.cmd_num);
     Serial.println("]");
-  } else if (ERR_UNKNOWN == r) {
+    do_result();
+    return;
+  }
+
+  if (ERR_UNKNOWN == r) {
+    int r = parseConsoleCommand(s);
+    if (0 == r) {
+      return;
+    }
+
     Serial.print("[ERR Parsing '");
     Serial.print(s);
     Serial.println("']");
@@ -171,6 +212,8 @@ void dispatchCommand(char *s)
     Serial.print(s);
     Serial.println("']");
   }
+
+  display_none();
 }
 
 void rfm_notify(EVT_Event_t *evt) {
@@ -194,16 +237,17 @@ void to_notify(EVT_Event_t *evt) {
     return;
   }
 
-  // XXX remove
-  return;
+  if (DISPLAY_MODE_TO != display_mode) {
+    return;
+  }
 
   COM_TO_Event_t *to_evt = (COM_TO_Event_t *)evt;
   TO_Object_t *obj = (TO_Object_t *)to_evt->data;
 
-  Serial.print("-> ");
+  Serial.print("\n\r\t");
 
   size_t sizeRemaining = to_evt->length;
-  
+
   while (sizeRemaining >= sizeof(TO_Object_t)) {
     Serial.print(obj->param, HEX);
     Serial.print(':');
@@ -213,8 +257,6 @@ void to_notify(EVT_Event_t *evt) {
     obj++;
     sizeRemaining = sizeRemaining - sizeof(TO_Object_t);
   }
-
-  Serial.println();
 }
 
 void ci_r_notify(EVT_Event_t *evt) {
@@ -229,7 +271,7 @@ void ci_r_notify(EVT_Event_t *evt) {
   }
 }
 
-void ci_ready_notify(EVT_Event_t *evt) 
+void ci_ready_notify(EVT_Event_t *evt)
 {
   if (CI_EVT_TYPE_READY != evt->type) {
     return;
@@ -243,7 +285,7 @@ void ci_ready_notify(EVT_Event_t *evt)
   }
 }
 
-void ci_ack_notify(EVT_Event_t *evt) 
+void ci_ack_notify(EVT_Event_t *evt)
 {
   if (CI_EVT_TYPE_ACK != evt->type) {
     return;
@@ -251,7 +293,7 @@ void ci_ack_notify(EVT_Event_t *evt)
 
   CI_Ack_Event_t *ack = (CI_Ack_Event_t *)evt;
 
-  if (0 != serialNotify()) {
+  if (DISPLAY_MODE_RESULT != display_mode) {
     return;
   }
 
@@ -259,27 +301,27 @@ void ci_ack_notify(EVT_Event_t *evt)
   Serial.print(ack->cmd->cmd_num);
   if (CI_R_OK == ack->cmd->result) {
     Serial.print(" OK");
-  } 
-  else {
+  } else {
     Serial.print(" ERR ");
     Serial.print(ack->cmd->result);
   }
-  Serial.println("]");
+  Serial.print("]");
+  display_none();
 }
 
 void debugEvent(EVT_Event_t *e)
 {
   if (0 == serialNotify()) {
     Serial.print("Event: ");
-    Serial.println(e->type);
+    Serial.print(e->type);
   }
 }
 
-void Error(uint8_t errno) 
+void Error(uint8_t errno)
 {
   if (0 == serialNotify()) {
     Serial.print("ERROR: ");
-    Serial.println(errno);
+    Serial.print(errno);
   }
 }
 
@@ -340,6 +382,16 @@ int parseCICommand(char *s) {
   return 0;
 }
 
+int parseConsoleCommand(char *s)
+{
+  if (strncmp(s, "TO", 2) == 0) {
+    display_mode = DISPLAY_MODE_TO;
+    return 0;
+  }
+
+  return ERR_UNKNOWN;
+}
+
 // returns if it's appropriate to notify user on the console
 int serialNotify()
 {
@@ -351,6 +403,7 @@ int serialNotify()
     return -1;
   }
 
+  display_mode = DISPLAY_MODE_NONE;
   return 0;
 }
 
@@ -365,7 +418,7 @@ int serialNotify()
       Return the string of the next command. Commands are delimited by return"
       Handle BackSpace character
       Make all chars lowercase
-    
+
     Adapted from https://create.arduino.cc/projecthub/mikefarr/simple-command-line-interface-4f0a3f
 *************************************************************************************************************/
 
