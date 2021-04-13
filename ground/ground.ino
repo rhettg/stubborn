@@ -96,8 +96,6 @@ void setup() {
   Serial.print("-> ");
 }
 
-bool running = false;
-
 void loop() {
   uint8_t n = 0;
 
