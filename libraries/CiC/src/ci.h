@@ -8,6 +8,9 @@
 #define CI_CMD_BOOM  3
 #define CI_CMD_STOP  4
 #define CI_CMD_FWD   5
+#define CI_CMD_RT    6 
+#define CI_CMD_LT    7 
+#define CI_CMD_BCK   8
 
 #define CI_MAX_CMDS 10
 

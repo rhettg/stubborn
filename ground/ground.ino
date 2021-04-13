@@ -210,6 +210,8 @@ void dispatchCommand(char *s)
   } else {
     Serial.print("[ERR issuing command '");
     Serial.print(s);
+    Serial.print(": ");
+    Serial.print(r);
     Serial.println("']");
   }
 
@@ -344,28 +346,23 @@ int parseCICommand(char *s) {
       cmd_data[0] = v1;
     }
   } else if (strncmp(s, "BCK ", 4) == 0) {
+    cmd = CI_CMD_BCK;
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
-  /*
-  } else if (strncmp(cmd_str, "RT ", 3) == 0) {
+  } else if (strncmp(s, "RT ", 3) == 0) {
+    cmd = CI_CMD_RT;
+    v1 = atoi(s+3);
+    if (v1 > 0 && v1 < 256) {
+      cmd_data[0] = v1;
+    }
+  } else if (strncmp(s, "LT ", 3) == 0) {
+    cmd = CI_CMD_LT;
     v1 = atoi(cmd+3);
     if (v1 > 0 && v1 < 256) {
-      motorASpeed = v1;
-      motorBSpeed = -v1;
-
-      return true;
+      cmd_data[0] = v1;
     }
-  } else if (strncmp(cmd, "LT ", 3) == 0) {
-    v1 = atoi(cmd+3);
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = -v1;
-      motorBSpeed = v1;
-
-      return true;
-    }
-    */
   } else if (strncmp(s, "STOP", 4) == 0) {
       cmd_data[0] = 0;
       cmd = CI_CMD_STOP;
