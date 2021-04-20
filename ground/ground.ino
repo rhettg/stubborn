@@ -237,9 +237,10 @@ void rfm_notify(EVT_Event_t *evt) {
 #define TO_PARAM_ERROR    1
 #define TO_PARAM_MILLIS   2 
 #define TO_PARAM_LOOP     3 
-#define TO_PARAM_IMPACT   5
-#define TO_PARAM_MOTOR_A 10
-#define TO_PARAM_MOTOR_B 11
+#define TO_PARAM_COM_SEQ 10
+#define TO_PARAM_MOTOR_A 40
+#define TO_PARAM_MOTOR_B 41
+#define TO_PARAM_IMPACT  50
 
 void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_TO != evt->type) {
@@ -284,6 +285,9 @@ void to_notify(EVT_Event_t *evt) {
       Serial.print("LOOP:");
       Serial.print(obj->data);
       Serial.print("ms");
+    } else if (TO_PARAM_COM_SEQ == obj->param) {
+      Serial.print("COM:");
+      Serial.print(obj->data);
     } else if (TO_PARAM_IMPACT == obj->param) {
       if (obj->data > 0) {
         Serial.print("IMPACT");

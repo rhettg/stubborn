@@ -29,11 +29,10 @@ int motorBSpeed = 0;
 #define TO_PARAM_ERROR    1
 #define TO_PARAM_MILLIS   2 
 #define TO_PARAM_LOOP     3 
-#define TO_PARAM_IMPACT   5
-#define TO_PARAM_MOTOR_A 10
-#define TO_PARAM_MOTOR_B 11
-
-#define MAX_TO_PARAMS 12
+#define TO_PARAM_COM_SEQ 10
+#define TO_PARAM_MOTOR_A 40
+#define TO_PARAM_MOTOR_B 41
+#define TO_PARAM_IMPACT  50
 
 unsigned long lastTOSync = 0;
 
@@ -263,6 +262,10 @@ void com_ci_notify(EVT_Event_t *evt)
   int r = CI_ingest(&ci, ci_evt->frame->cmd, ci_evt->data);
   if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, r)) {
     Error(ERR_COM_SEND);
+  }
+
+  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, ci_evt->frame->cmd_num)) {
+    Error(ERR_TO_SET);
   }
 }
 
