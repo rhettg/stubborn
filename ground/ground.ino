@@ -359,7 +359,7 @@ int parseCICommand(char *s) {
     }
   } else if (strncmp(s, "LT ", 3) == 0) {
     cmd = CI_CMD_LT;
-    v1 = atoi(cmd+3);
+    v1 = atoi(s+3);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
