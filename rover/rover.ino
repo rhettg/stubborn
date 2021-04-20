@@ -33,7 +33,7 @@ int motorBSpeed = 0;
 #define TO_PARAM_MOTOR_A 10
 #define TO_PARAM_MOTOR_B 11
 
-#define MAX_TO_PARAMS 10
+#define MAX_TO_PARAMS 12
 
 unsigned long lastTOSync = 0;
 

@@ -234,6 +234,13 @@ void rfm_notify(EVT_Event_t *evt) {
   rf69.waitPacketSent();
 }
 
+#define TO_PARAM_ERROR    1
+#define TO_PARAM_MILLIS   2 
+#define TO_PARAM_LOOP     3 
+#define TO_PARAM_IMPACT   5
+#define TO_PARAM_MOTOR_A 10
+#define TO_PARAM_MOTOR_B 11
+
 void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_TO != evt->type) {
     return;
@@ -250,10 +257,50 @@ void to_notify(EVT_Event_t *evt) {
 
   size_t sizeRemaining = to_evt->length;
 
+  int motorVelocity;
+  static unsigned long millis = 0;
+  unsigned long newMillis = 0;
+
   while (sizeRemaining >= sizeof(TO_Object_t)) {
-    Serial.print(obj->param, HEX);
-    Serial.print(':');
-    Serial.print(obj->data, HEX);
+    if (TO_PARAM_ERROR == obj->param)  {
+      Serial.print("ERR:");
+      Serial.print(obj->data);
+    } else if (TO_PARAM_MILLIS == obj->param) {
+      Serial.print("MILLIS:");
+      newMillis = (unsigned long)obj->data;
+
+      // The rover could have rebooted and started over.
+      if (newMillis < millis) {
+        millis = 0;
+      }
+
+      // Save the first millis as a reference point.
+      if (0 == millis) {
+        millis = newMillis;
+      }
+
+      Serial.print(newMillis - millis);
+    } else if (TO_PARAM_LOOP == obj->param) {
+      Serial.print("LOOP:");
+      Serial.print(obj->data);
+      Serial.print("ms");
+    } else if (TO_PARAM_IMPACT == obj->param) {
+      if (obj->data > 0) {
+        Serial.print("IMPACT");
+      }
+    } else if (TO_PARAM_MOTOR_A == obj->param) {
+      Serial.print("M.A:");
+      motorVelocity = (int)obj->data;
+      Serial.print(motorVelocity);
+    } else if (TO_PARAM_MOTOR_B == obj->param) {
+      Serial.print("M.B:");
+      motorVelocity = (int)obj->data;
+      Serial.print(motorVelocity);
+    } else {
+      Serial.print(obj->param, HEX);
+      Serial.print(':');
+      Serial.print(obj->data, HEX);
+    }
     Serial.print(' ');
 
     obj++;
