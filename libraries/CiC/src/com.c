@@ -16,21 +16,6 @@ static uint8_t encode_header(uint8_t type)
     return COM_VERSION << 4 | type;
 }
 
-void COM_notify(EVT_Event_t *evt)
-{
-    /*
-    switch (evt->type) {
-        case COM_EVT_TYPE_DATA_IN:
-            COM_notify_data_in((COM_DataIn_Event *)evt);
-            break;
-        case COM_EVT_TYPE_DATA_OUT:
-            COM_notify_data_out((COM_DataOut_Event *)evt);
-            break;
-    }
-    return;
-    */
-}
-
 int COM_recv(COM_t *com, uint8_t *data, size_t length)
 {
     uint8_t *payload = data;

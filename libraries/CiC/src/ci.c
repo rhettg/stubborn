@@ -57,6 +57,8 @@ int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA])
     }
 
     if (NULL == ci->handlers[cmd]) {
+        // This error differs from a standard -<value> to optimize passing the
+        // value back to the sending CI system.
         return CI_R_ERR_NOT_FOUND;
     }
 
