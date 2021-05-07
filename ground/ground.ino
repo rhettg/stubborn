@@ -437,6 +437,16 @@ int parseConsoleCommand(char *s)
     return 0;
   }
 
+  if (strncmp(s, "RESEND", 5) == 0) {
+    display_mode = DISPLAY_MODE_TO;
+    COM_send_retry(&com);
+    Serial.print("[SENT ");
+    Serial.print(ci.current.cmd_num);
+    Serial.println("]");
+    do_result();
+    return 0;
+  }
+
   return ERR_UNKNOWN;
 }
 

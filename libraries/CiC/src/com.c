@@ -96,6 +96,8 @@ int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t 
     evt.length += length;
     payload += length;
 
+    com->data_len = evt.length;
+
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
     return 0;
@@ -120,6 +122,8 @@ int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result)
     ci_r_frame->result = result;
     evt.length += sizeof(COM_CI_R_Frame_t);
     payload += sizeof(COM_CI_R_Frame_t);
+
+    com->data_len = evt.length;
 
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
@@ -148,7 +152,20 @@ int COM_send_to(COM_t *com, uint8_t *data, size_t length)
     evt.length += length;
     payload += length;
 
+    com->data_len = evt.length;
+
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
+    return 0;
+}
+
+int COM_send_retry(COM_t *com)
+{
+    COM_Data_Event_t evt;
+    evt.event.type = COM_EVT_TYPE_DATA;
+    evt.data = com->data_buf;
+    evt.length = com->data_len;
+
+    EVT_notify(com->evt, (EVT_Event_t *)&evt);
     return 0;
 }

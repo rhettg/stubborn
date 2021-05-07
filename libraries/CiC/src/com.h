@@ -41,6 +41,7 @@ typedef struct {
 typedef struct {
     EVT_t   *evt;
     uint8_t data_buf[COM_MAX_LENGTH];
+    size_t data_len;
 } COM_t;
 
 typedef struct {
@@ -157,5 +158,13 @@ int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result);
  * \sa to.h
  */
 int COM_send_to(COM_t *com, uint8_t *data, size_t length);
+
+
+/**
+ * COM_send_retry retries the last sent packet.
+ *
+ * This is maybe temporary until it's automated? Should it live within COM?
+ */
+int COM_send_retry(COM_t *com);
 
 #endif
