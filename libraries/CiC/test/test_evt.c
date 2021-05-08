@@ -7,7 +7,7 @@
 int tests_run = 0;
 
 #define EVENT_TYPE_A 1
-#define EVENT_TYPE_B 1
+#define EVENT_TYPE_B 2
 
 int notified = 0;
 void notify(EVT_Event_t *evt)
@@ -27,7 +27,7 @@ static char * test_subscribe() {
     aEvent.type = EVENT_TYPE_A;
 
     EVT_Event_t bEvent;
-    aEvent.type = EVENT_TYPE_B;
+    bEvent.type = EVENT_TYPE_B;
 
     EVT_notify(&evt, &aEvent);
 
