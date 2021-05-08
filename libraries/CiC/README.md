@@ -28,6 +28,7 @@ Consider this more of an educational project.
   * `com` *communications* interfaces with a hardware interface and decodes multiple types of messages for consumption by other components.
   * `to` *telemetry* provides an interface for recording parameters and their values, packaging up a packet to send to mission control.
   * `ci` *command ingestion* processes commands and maps them to mission specific functions.
+  * `tmr` *timer* provides for triggering events on a timed schedule
 
 ## Usage
 
