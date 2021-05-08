@@ -7,6 +7,7 @@ extern "C" {
 #include "com.h"
 #include "to.h"
 #include "ci.h"
+#include "stubborn.h"
 };
 
 int cmd_num = 0;
@@ -233,14 +234,6 @@ void rfm_notify(EVT_Event_t *evt) {
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
 }
-
-#define TO_PARAM_ERROR    1
-#define TO_PARAM_MILLIS   2 
-#define TO_PARAM_LOOP     3 
-#define TO_PARAM_COM_SEQ 10
-#define TO_PARAM_MOTOR_A 40
-#define TO_PARAM_MOTOR_B 41
-#define TO_PARAM_IMPACT  50
 
 void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_TO != evt->type) {
