@@ -6,6 +6,8 @@ extern "C" {
 #include "to.h"
 #include "com.h"
 #include "ci.h"
+#include "tmr.h"
+#include "stubborn.h"
 }
 
 uint8_t enablePin[] = {10, 5};
@@ -26,13 +28,14 @@ int motorBSpeed = 0;
 
 #define MAX_TO_SIZE   60
 
-#define TO_PARAM_ERROR    1
-#define TO_PARAM_MILLIS   2 
-#define TO_PARAM_LOOP     3 
-#define TO_PARAM_COM_SEQ 10
-#define TO_PARAM_MOTOR_A 40
-#define TO_PARAM_MOTOR_B 41
-#define TO_PARAM_IMPACT  50
+// Mission specific event types will start at 64. CiC events fit under that.
+#define EVT_TYPE_SYNC_TO 64
+
+// syncTOEvent is triggered to prepare and send a TO (telemetry output) packet.
+// There is only one as this is not something that will be used in more places.
+struct {
+  EVT_Event_t event;
+} syncTOEvent;
 
 unsigned long lastTOSync = 0;
 
@@ -44,6 +47,7 @@ unsigned long lastTOSync = 0;
 #define ERR_TO_SET   10
 #define ERR_COM_SEND 20
 #define ERR_CI_REGISTER 30
+#define ERR_TMR_ENQUEUE 40
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
@@ -53,6 +57,7 @@ unsigned long impactStart = 0;
 
 TO_t to   = {0};
 EVT_t evt = {0};
+TMR_t tmr = {0};
 COM_t com = {0};
 CI_t ci = {0};
 
@@ -65,6 +70,10 @@ void setup() {
   EVT_init(&evt);
   com.evt = &evt;
   ci.evt = &evt;
+  tmr.evt = &evt;
+
+  // Is there some way I could do this as part of init?
+  syncTOEvent.event.type = EVT_TYPE_SYNC_TO;
 
   EVT_subscribe(&evt, &debugEvent);
 
@@ -111,6 +120,7 @@ void setup() {
   setMotor(1, 0);
 
   EVT_subscribe(&evt, &com_ci_notify);
+  EVT_subscribe(&evt, &handleSyncTO);
 
   if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
     Error(ERR_CI_REGISTER);
@@ -137,11 +147,17 @@ void setup() {
     Error(ERR_CI_REGISTER);
   }
 
+  // Send initial TO broadcast and start sync schedule.
+  handleSyncTO((EVT_Event_t *)&syncTOEvent);
+
   Serial.println("Ready");
 }
 
 void loop() {
   unsigned long loopStart = millis();
+
+  // Dispatch any scheduled events.
+  TMR_handle(&tmr, loopStart);
 
   uint8_t n = 0;
   
@@ -165,6 +181,10 @@ void loop() {
 */
 
     COM_recv(&com, rf_buf, n);
+
+    if (0 != TO_set(&to, TO_PARAM_RFM_RSSI, (uint8_t)rf69.lastRssi())) {
+      Error(ERR_TO_SET);
+    }
   }
 
   int iv = analogRead(0);
@@ -177,7 +197,10 @@ void loop() {
       Error(ERR_TO_SET);
     }
 
-    clearTO();
+    // TODO: Previously this simply sped up the sync step rather than sync synchronously.
+    // That was better because it means there won't be a delay for stopping the rover.
+    // I need a better control flow to spearate out these inner and outer-loop behaviors.
+    syncTO();
 
     motorASpeed = 0;
     motorBSpeed = 0;
@@ -188,7 +211,7 @@ void loop() {
       Error(ERR_TO_SET);
     }
 
-    clearTO();
+    syncTO();
   }
 
   setMotor(0, motorASpeed);
@@ -207,10 +230,6 @@ void loop() {
 
   if (0 != TO_set(&to, TO_PARAM_LOOP, millis()-loopStart)) {
     Error(ERR_TO_SET);
-  }
-
-  if (millis() - lastTOSync > 1000) {
-    syncTO();
   }
 }
 
@@ -433,9 +452,18 @@ void Blink(byte PIN, byte DELAY_MS, byte loops) {
   }
 }
 
-void clearTO()
+
+void handleSyncTO(EVT_Event_t *e)
 {
-  lastTOSync = 0;
+    if (EVT_TYPE_SYNC_TO != e->type) {
+      return;
+    }
+
+    syncTO();
+
+    if (0 != TMR_enqueue(&tmr, (EVT_Event_t *)&syncTOEvent, millis()+1000)) {
+      Error(ERR_TMR_ENQUEUE);
+    }
 }
 
 void syncTO()
@@ -447,8 +475,6 @@ void syncTO()
         Error(ERR_COM_SEND);
       }
     }
-
-    lastTOSync = millis();
 }
 
 void debugEvent(EVT_Event_t *e)

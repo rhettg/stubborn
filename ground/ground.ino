@@ -7,6 +7,7 @@ extern "C" {
 #include "com.h"
 #include "to.h"
 #include "ci.h"
+#include "stubborn.h"
 };
 
 int cmd_num = 0;
@@ -121,6 +122,8 @@ void display_none()
   display_mode = DISPLAY_MODE_NONE;
 }
 
+int fwd = 0;
+
 void loop()
 {
   uint8_t n = 0;
@@ -129,17 +132,22 @@ void loop()
     do_prompt();
   }
 
-/*
+#ifdef AUTOCMD
   if (millis() - last_cmd > 5000) {
     last_cmd = millis();
     if (0 == serialNotify()) {
-      Serial.println("[AUTO BOOM]");
+      Serial.println("[AUTO FWD]");
       Serial.print("<- ");
-      dispatchCommand("BOOM");
+      if (fwd) {
+        dispatchCommand("FWD 150");
+      } else {
+        dispatchCommand("STOP");
+      }
+      fwd = !fwd;
       Serial.print("-> ");
     }
   }
-  */
+#endif
 
   if (Serial.available() > 0) {
     if (0 != getCommandLineFromSerialPort()) {
@@ -210,9 +218,9 @@ void dispatchCommand(char *s)
   } else {
     Serial.print("[ERR issuing command '");
     Serial.print(s);
-    Serial.print(": ");
+    Serial.print("': ");
     Serial.print(r);
-    Serial.println("']");
+    Serial.println("]");
   }
 
   display_none();
@@ -224,23 +232,15 @@ void rfm_notify(EVT_Event_t *evt) {
   }
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
-  /*
+#ifdef DEBUG
   Serial.print("Sending "); Serial.print(d_evt->length); Serial.print(" bytes");
   for(int i = 0; i < d_evt->length; i++) {
     Serial.print(d_evt->data[i], HEX); Serial.print(' ');
   }
-  */
+#endif
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
 }
-
-#define TO_PARAM_ERROR    1
-#define TO_PARAM_MILLIS   2 
-#define TO_PARAM_LOOP     3 
-#define TO_PARAM_COM_SEQ 10
-#define TO_PARAM_MOTOR_A 40
-#define TO_PARAM_MOTOR_B 41
-#define TO_PARAM_IMPACT  50
 
 void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_TO != evt->type) {
@@ -259,28 +259,15 @@ void to_notify(EVT_Event_t *evt) {
   size_t sizeRemaining = to_evt->length;
 
   int motorVelocity;
-  static unsigned long millis = 0;
-  unsigned long newMillis = 0;
 
   while (sizeRemaining >= sizeof(TO_Object_t)) {
     if (TO_PARAM_ERROR == obj->param)  {
       Serial.print("ERR:");
       Serial.print(obj->data);
     } else if (TO_PARAM_MILLIS == obj->param) {
-      Serial.print("MILLIS:");
-      newMillis = (unsigned long)obj->data;
-
-      // The rover could have rebooted and started over.
-      if (newMillis < millis) {
-        millis = 0;
-      }
-
-      // Save the first millis as a reference point.
-      if (0 == millis) {
-        millis = newMillis;
-      }
-
-      Serial.print(newMillis - millis);
+      Serial.print("UP:");
+      Serial.print((unsigned long)obj->data / 1000);
+      Serial.print("s");
     } else if (TO_PARAM_LOOP == obj->param) {
       Serial.print("LOOP:");
       Serial.print(obj->data);
@@ -300,6 +287,9 @@ void to_notify(EVT_Event_t *evt) {
       Serial.print("M.B:");
       motorVelocity = (int)obj->data;
       Serial.print(motorVelocity);
+    } else if (TO_PARAM_RFM_RSSI == obj->param) {
+      Serial.print("RSSI:");
+      Serial.print((int)obj->data);
     } else {
       Serial.print(obj->param, HEX);
       Serial.print(':');
