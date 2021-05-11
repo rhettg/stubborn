@@ -259,28 +259,15 @@ void to_notify(EVT_Event_t *evt) {
   size_t sizeRemaining = to_evt->length;
 
   int motorVelocity;
-  static unsigned long millis = 0;
-  unsigned long newMillis = 0;
 
   while (sizeRemaining >= sizeof(TO_Object_t)) {
     if (TO_PARAM_ERROR == obj->param)  {
       Serial.print("ERR:");
       Serial.print(obj->data);
     } else if (TO_PARAM_MILLIS == obj->param) {
-      Serial.print("MILLIS:");
-      newMillis = (unsigned long)obj->data;
-
-      // The rover could have rebooted and started over.
-      if (newMillis < millis) {
-        millis = 0;
-      }
-
-      // Save the first millis as a reference point.
-      if (0 == millis) {
-        millis = newMillis;
-      }
-
-      Serial.print(newMillis - millis);
+      Serial.print("UP:");
+      Serial.print((unsigned long)obj->data / 1000);
+      Serial.print("s");
     } else if (TO_PARAM_LOOP == obj->param) {
       Serial.print("LOOP:");
       Serial.print(obj->data);
