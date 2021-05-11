@@ -218,9 +218,9 @@ void dispatchCommand(char *s)
   } else {
     Serial.print("[ERR issuing command '");
     Serial.print(s);
-    Serial.print(": ");
+    Serial.print("': ");
     Serial.print(r);
-    Serial.println("']");
+    Serial.println("]");
   }
 
   display_none();
