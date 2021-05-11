@@ -181,6 +181,10 @@ void loop() {
 */
 
     COM_recv(&com, rf_buf, n);
+
+    if (0 != TO_set(&to, TO_PARAM_RFM_RSSI, (uint8_t)rf69.lastRssi())) {
+      Error(ERR_TO_SET);
+    }
   }
 
   int iv = analogRead(0);

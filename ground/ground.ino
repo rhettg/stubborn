@@ -300,6 +300,9 @@ void to_notify(EVT_Event_t *evt) {
       Serial.print("M.B:");
       motorVelocity = (int)obj->data;
       Serial.print(motorVelocity);
+    } else if (TO_PARAM_RFM_RSSI == obj->param) {
+      Serial.print("RSSI:");
+      Serial.print((int)obj->data);
     } else {
       Serial.print(obj->param, HEX);
       Serial.print(':');
