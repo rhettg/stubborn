@@ -122,6 +122,8 @@ void display_none()
   display_mode = DISPLAY_MODE_NONE;
 }
 
+int fwd = 0;
+
 void loop()
 {
   uint8_t n = 0;
@@ -130,17 +132,22 @@ void loop()
     do_prompt();
   }
 
-/*
+#ifdef AUTOCMD
   if (millis() - last_cmd > 5000) {
     last_cmd = millis();
     if (0 == serialNotify()) {
-      Serial.println("[AUTO BOOM]");
+      Serial.println("[AUTO FWD]");
       Serial.print("<- ");
-      dispatchCommand("BOOM");
+      if (fwd) {
+        dispatchCommand("FWD 150");
+      } else {
+        dispatchCommand("STOP");
+      }
+      fwd = !fwd;
       Serial.print("-> ");
     }
   }
-  */
+#endif
 
   if (Serial.available() > 0) {
     if (0 != getCommandLineFromSerialPort()) {
@@ -225,12 +232,12 @@ void rfm_notify(EVT_Event_t *evt) {
   }
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
-  /*
+#ifdef DEBUG
   Serial.print("Sending "); Serial.print(d_evt->length); Serial.print(" bytes");
   for(int i = 0; i < d_evt->length; i++) {
     Serial.print(d_evt->data[i], HEX); Serial.print(' ');
   }
-  */
+#endif
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
 }
