@@ -31,14 +31,18 @@ int TMR_handle(TMR_t *tmr, unsigned long now)
         return -1;
     }
 
-    if (tmr->wake_millis > now) {
+    if (tmr->wake_millis == 0 || tmr->wake_millis > now) {
         return 0;
     }
 
     tmr->wake_millis = 0;
 
     for (int i = 0; i < TMR_MAX_TIMERS; i++) {
-        if (tmr->event_notify[i] > 0 && tmr->event_notify[i] < now) {
+        if (tmr->event_notify[i] == 0) {
+            continue;
+        }
+
+        if (tmr->event_notify[i] < now) {
             EVT_notify(tmr->evt, tmr->events[i]);
 
             tmr->event_notify[i] = 0;

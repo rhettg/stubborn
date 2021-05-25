@@ -38,8 +38,8 @@ static char * test_handle() {
 
     EVT_subscribe(&evt, &notify);
 
-    mu_assert("should have succeeded", TMR_enqueue(&tmr, &aEvent, 1000) == 0);
     mu_assert("should have succeeded", TMR_enqueue(&tmr, &bEvent, 2000) == 0);
+    mu_assert("should have succeeded", TMR_enqueue(&tmr, &aEvent, 1000) == 0);
 
     mu_assert("should have handled", TMR_handle(&tmr, 500) == 0);
     mu_assert("should not have delivered event 1", notifiedA == 0);
@@ -57,6 +57,13 @@ static char * test_handle() {
 
     mu_assert("should have handled", TMR_handle(&tmr, 2001) == 0);
     mu_assert("should have delivered event 7", notifiedB == 1);
+
+    // Do some re-enqueue (make sure we're cleaning up our timer slots)
+    mu_assert("should have succeeded", TMR_enqueue(&tmr, &aEvent, 3000) == 0);
+    mu_assert("should have handled", TMR_handle(&tmr, 2002) == 0);
+    mu_assert("should not have delivered event 8", notifiedA == 1);
+    mu_assert("should have handled", TMR_handle(&tmr, 3001) == 0);
+    mu_assert("should have delivered event 9", notifiedA == 2);
 
     return 0;
 }
