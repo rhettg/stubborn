@@ -3,11 +3,11 @@
 #include <RH_RF69.h>
 
 extern "C" {
+#include "stubborn.h"
 #include "evt.h"
 #include "com.h"
 #include "to.h"
 #include "ci.h"
-#include "stubborn.h"
 };
 
 int cmd_num = 0;
@@ -381,32 +381,32 @@ int parseCICommand(char *s) {
   } else if (strncmp(s, "BOOM", 5) == 0) {
     cmd = CI_CMD_BOOM;
   } else if (strncmp(s, "FWD ", 4) == 0) {
-    cmd = CI_CMD_FWD;
+    cmd = CI_CMD_EXT_FWD;
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
   } else if (strncmp(s, "BCK ", 4) == 0) {
-    cmd = CI_CMD_BCK;
+    cmd = CI_CMD_EXT_BCK;
     v1 = atoi(s+4);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
   } else if (strncmp(s, "RT ", 3) == 0) {
-    cmd = CI_CMD_RT;
+    cmd = CI_CMD_EXT_RT;
     v1 = atoi(s+3);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
   } else if (strncmp(s, "LT ", 3) == 0) {
-    cmd = CI_CMD_LT;
+    cmd = CI_CMD_EXT_LT;
     v1 = atoi(s+3);
     if (v1 > 0 && v1 < 256) {
       cmd_data[0] = v1;
     }
   } else if (strncmp(s, "STOP", 4) == 0) {
       cmd_data[0] = 0;
-      cmd = CI_CMD_STOP;
+      cmd = CI_CMD_EXT_STOP;
   }
 
   if (0 == cmd) {

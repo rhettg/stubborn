@@ -7,13 +7,10 @@
 #define CI_CMD_NOOP  1
 #define CI_CMD_CLEAR 2
 #define CI_CMD_BOOM  3
-#define CI_CMD_STOP  4
-#define CI_CMD_FWD   5
-#define CI_CMD_RT    6 
-#define CI_CMD_LT    7 
-#define CI_CMD_BCK   8
 
-#define CI_MAX_CMDS 10
+#ifndef CI_MAX_CMDS
+#define CI_MAX_CMDS 4
+#endif
 
 #define CI_R_OK            0
 #define CI_R_ERR_INVALID   1 

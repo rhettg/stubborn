@@ -3,11 +3,11 @@
 #include <RH_RF69.h>
 
 extern "C" {
+#include "stubborn.h"
 #include "to.h"
 #include "com.h"
 #include "ci.h"
 #include "tmr.h"
-#include "stubborn.h"
 }
 
 uint8_t enablePin[] = {10, 5};
@@ -131,19 +131,19 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_BOOM, &handleCmdBoom)) {
     Error(ERR_CI_REGISTER);
   }
-  if (0 != CI_register(&ci, CI_CMD_STOP, &handleCmdStop)) {
+  if (0 != CI_register(&ci, CI_CMD_EXT_STOP, &handleCmdStop)) {
     Error(ERR_CI_REGISTER);
   }
-  if (0 != CI_register(&ci, CI_CMD_FWD, &handleCmdFwd)) {
+  if (0 != CI_register(&ci, CI_CMD_EXT_FWD, &handleCmdFwd)) {
     Error(ERR_CI_REGISTER);
   }
-  if (0 != CI_register(&ci, CI_CMD_BCK, &handleCmdBck)) {
+  if (0 != CI_register(&ci, CI_CMD_EXT_BCK, &handleCmdBck)) {
     Error(ERR_CI_REGISTER);
   }
-  if (0 != CI_register(&ci, CI_CMD_RT, &handleCmdRT)) {
+  if (0 != CI_register(&ci, CI_CMD_EXT_RT, &handleCmdRT)) {
     Error(ERR_CI_REGISTER);
   }
-  if (0 != CI_register(&ci, CI_CMD_LT, &handleCmdLT)) {
+  if (0 != CI_register(&ci, CI_CMD_EXT_LT, &handleCmdLT)) {
     Error(ERR_CI_REGISTER);
   }
 
