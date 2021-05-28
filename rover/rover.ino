@@ -21,9 +21,6 @@ uint8_t motorPin2[] = {8, 6};
 
 #define RF69_FREQ 915.0
 
-int motorASpeed = 0;
-int motorBSpeed = 0;
-
 #define MAX_CMD       64
 
 #define MAX_TO_SIZE   60
@@ -31,18 +28,32 @@ int motorBSpeed = 0;
 #define MAX_LOOP_DURATION 5
 
 // Mission specific event types will start at 64. CiC events fit under that.
-#define EVT_TYPE_SYNC_TO 64
-#define EVT_TYPE_CI_STOP 70
-
-// syncTOEvent is triggered to prepare and send a TO (telemetry output) packet.
-// There is only one as this is not something that will be used in more places.
-struct {
-  EVT_Event_t event;
-} syncTOEvent;
+#define EVT_TYPE_SYNC_TO       64
+#define EVT_TYPE_RFM_READY     65
+#define EVT_TYPE_CI_STOP       70
+#define EVT_TYPE_IMPACT_SENSOR 75
+#define EVT_TYPE_MOTOR_SPEED   80
 
 unsigned long lastTOSync = 0;
 
+// syncTOEvent is triggered to prepare and send a TO (telemetry output) packet.
+// There is only one as this is not something that will be used in more places.
+EVT_Event_t syncTOEvent = {EVT_TYPE_SYNC_TO};
+EVT_Event_t rfmReadyEvent = {EVT_TYPE_RFM_READY};
+
 EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
+
+struct {
+  EVT_Event_t event = {EVT_TYPE_IMPACT_SENSOR};
+  int value;
+
+} impactSensorEvent;
+
+struct {
+  EVT_Event_t event = {EVT_TYPE_MOTOR_SPEED};
+  int Aval = 0;
+  int Bval = 0;
+} motorSpeedEvent;
 
 #define ERR_UNKNOWN  1
 #define ERR_CMD      2
@@ -51,6 +62,7 @@ EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
 #define ERR_RFM_FREQ 6
 #define ERR_RFM_RECV 7
 #define ERR_TO_SET   10
+#define ERR_EVT   15
 #define ERR_COM_SEND 20
 #define ERR_CI_REGISTER 30
 #define ERR_TMR_ENQUEUE 40
@@ -58,8 +70,6 @@ EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 
 uint8_t rf_buf[RH_RF69_MAX_MESSAGE_LEN];
-
-unsigned long impactStart = 0;
 
 TO_t to   = {0};
 EVT_t evt = {0};
@@ -78,10 +88,7 @@ void setup() {
   ci.evt = &evt;
   tmr.evt = &evt;
 
-  // Is there some way I could do this as part of init?
-  syncTOEvent.event.type = EVT_TYPE_SYNC_TO;
-
-  EVT_subscribe(&evt, &debugEvent);
+  // EVT_subscribe(&evt, &debugEvent);
 
   if (0 != TO_init(&to)) {
     Serial.println("FAIL: TO init");
@@ -128,6 +135,9 @@ void setup() {
   EVT_subscribe(&evt, &com_ci_notify);
   EVT_subscribe(&evt, &handleSyncTO);
   EVT_subscribe(&evt, &handleCIStop);
+  EVT_subscribe(&evt, &handleRFMReady);
+  EVT_subscribe(&evt, &handleImpactSensor);
+  EVT_subscribe(&evt, &handleMotorSpeed);
 
   if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
     Error(ERR_CI_REGISTER);
@@ -166,71 +176,17 @@ void loop() {
   // Dispatch any scheduled events.
   TMR_handle(&tmr, loopStart);
 
-  uint8_t n = 0;
-  
-  if (Serial.available() > 0) {
-    handleCmd();
-  }
-
   if (rf69.available()) {  
-    n = sizeof(rf_buf);
-
-    if (!rf69.recv(rf_buf, &n)) {
-      Error(ERR_RFM_RECV);
-    }
-
-/*
-    Serial.print("Received "); Serial.print(n); Serial.print(" bytes: ");
-    for (int i = 0; i < n; i++) {
-      Serial.print(rf_buf[i], HEX); Serial.print(' ');
-    }
-    Serial.println();
-*/
-
-    COM_recv(&com, rf_buf, n);
-
-    if (0 != TO_set(&to, TO_PARAM_RFM_RSSI, (uint8_t)rf69.lastRssi())) {
-      Error(ERR_TO_SET);
+    if (0 != EVT_notify(&evt, &rfmReadyEvent)) {
+      Error(ERR_EVT);
     }
   }
 
-  int iv = analogRead(0);
-  
-  if (iv < 512 && impactStart == 0) {
-    impactStart = millis();
-    Serial.println("IMPACT");
-
-    if (0 != TO_set(&to, TO_PARAM_IMPACT, 1)) {
-      Error(ERR_TO_SET);
-    }
-
-    // TODO: Previously this simply sped up the sync step rather than sync synchronously.
-    // That was better because it means there won't be a delay for stopping the rover.
-    // I need a better control flow to spearate out these inner and outer-loop behaviors.
-    syncTO();
-
-    motorASpeed = 0;
-    motorBSpeed = 0;
-  } else if (impactStart > 0 && iv > 512 && millis() - impactStart > 500) {
-    impactStart = 0;
-
-    if (0 > TO_set(&to, TO_PARAM_IMPACT, 0)) {
-      Error(ERR_TO_SET);
-    }
-
-    syncTO();
+  impactSensorEvent.value = analogRead(0);
+  if (0 != EVT_notify(&evt, (EVT_Event_t *)&impactSensorEvent)) {
+    Error(ERR_EVT);
   }
 
-  setMotor(0, motorASpeed);
-  setMotor(1, motorBSpeed);
-
-  if (0 != TO_set(&to, TO_PARAM_MOTOR_A, motorASpeed)) {
-    Error(ERR_TO_SET);
-  }
-  if (0 != TO_set(&to, TO_PARAM_MOTOR_B, motorBSpeed)) {
-    Error(ERR_TO_SET);
-  }
-  
   if (0 != TO_set(&to, TO_PARAM_MILLIS, millis())) {
     Error(ERR_TO_SET);
   }
@@ -323,10 +279,19 @@ int handleCmdClear(uint8_t data[CI_MAX_DATA])
   }
 }
 
+void changeSpeed(int A, int B)
+{
+  motorSpeedEvent.Aval = A;
+  motorSpeedEvent.Bval = B;
+
+  if (0 != EVT_notify(&evt, (EVT_Event_t *)&motorSpeedEvent)) {
+    Error(ERR_EVT);
+  }
+}
+
 int handleCmdStop(uint8_t data[CI_MAX_DATA])
 {
-    motorASpeed = 0;
-    motorBSpeed = 0;
+    changeSpeed(0, 0);
     return CI_R_OK;
 }
 
@@ -345,8 +310,7 @@ int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
-    motorASpeed = MIN_MOTOR_SPEED;
-    motorBSpeed = MIN_MOTOR_SPEED;
+    changeSpeed(MIN_MOTOR_SPEED, MIN_MOTOR_SPEED);
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
@@ -359,8 +323,7 @@ int handleCmdBck(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
-    motorASpeed = -MIN_MOTOR_SPEED;
-    motorBSpeed = -MIN_MOTOR_SPEED;
+    changeSpeed(-MIN_MOTOR_SPEED, -MIN_MOTOR_SPEED);
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
@@ -373,8 +336,7 @@ int handleCmdRT(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
-    motorASpeed = MIN_MOTOR_SPEED;
-    motorBSpeed = -MIN_MOTOR_SPEED;
+    changeSpeed(MIN_MOTOR_SPEED, -MIN_MOTOR_SPEED);
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
@@ -387,85 +349,13 @@ int handleCmdLT(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
-    motorASpeed = -MIN_MOTOR_SPEED;
-    motorBSpeed = MIN_MOTOR_SPEED;
+    changeSpeed(-MIN_MOTOR_SPEED, MIN_MOTOR_SPEED);
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
     }
 
     return CI_R_OK;
-}
-
-void handleCmd()
-{
-    char cmd[MAX_CMD] = {0};
-
-    int n = Serial.readBytesUntil('\n', cmd, sizeof(cmd));
-
-    while (Serial.available() > 0) {
-      Serial.read();
-    }
-
-    if (n > 0) {
-        cmd[n] = 0; // for extra safety
-        Serial.print("-> ");
-        Serial.println(cmd);
-        
-        Serial.print("<- ");      
-        if (parseCmd(cmd)) {
-          Serial.println("OK");
-          Blink(LED, 40, 3); //blink LED 3 times, 40ms between blinks
-        } else {
-          Serial.println("FAIL - failed to parse");
-          Blink(LED, 100, 5);
-        }
-    }
-}
-
-bool parseCmd(char *cmd) {
-  int v1, v2;
-
-  if (strncmp(cmd, "FWD ", 4) == 0) {
-    v1 = atoi(cmd+4);
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = v1;
-      motorBSpeed = v1;
-
-      return true;
-    }
-  } else if (strncmp(cmd, "BCK ", 4) == 0) {
-    v1 = atoi(cmd+4);
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = -v1;
-      motorBSpeed = -v1;
-
-      return true;
-    }
-  } else if (strncmp(cmd, "RT ", 3) == 0) {
-    v1 = atoi(cmd+3);
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = v1;
-      motorBSpeed = -v1;
-
-      return true;
-    }
-  } else if (strncmp(cmd, "LT ", 3) == 0) {
-    v1 = atoi(cmd+3);
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = -v1;
-      motorBSpeed = v1;
-
-      return true;
-    }
-  } else if (strncmp(cmd, "STOP", 4) == 0) {
-      motorASpeed = 0;
-      motorBSpeed = 0;
-
-      return true;
-  }
-
-  return false;
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops) {
@@ -476,7 +366,6 @@ void Blink(byte PIN, byte DELAY_MS, byte loops) {
     delay(DELAY_MS);
   }
 }
-
 
 void handleSyncTO(EVT_Event_t *e)
 {
@@ -497,8 +386,7 @@ void handleCIStop(EVT_Event_t *e)
       return;
     }
 
-    motorASpeed = 0;
-    motorBSpeed = 0;
+    changeSpeed(0, 0);
 }
 
 void syncTO()
@@ -525,5 +413,92 @@ void Error(uint8_t errno)
   if (Serial.availableForWrite()) {
     Serial.print("ERROR: ");
     Serial.println(errno);
+  }
+}
+
+void handleRFMReady(EVT_Event_t *e)
+{
+    if (EVT_TYPE_RFM_READY != e->type) {
+      return;
+    }
+
+    uint8_t n = sizeof(rf_buf);
+
+    if (!rf69.recv(rf_buf, &n)) {
+      Error(ERR_RFM_RECV);
+    }
+
+/*
+    Serial.print("Received "); Serial.print(n); Serial.print(" bytes: ");
+    for (int i = 0; i < n; i++) {
+      Serial.print(rf_buf[i], HEX); Serial.print(' ');
+    }
+    Serial.println();
+*/
+
+    COM_recv(&com, rf_buf, n);
+
+    if (0 != TO_set(&to, TO_PARAM_RFM_RSSI, (uint8_t)rf69.lastRssi())) {
+      Error(ERR_TO_SET);
+    }
+}
+
+
+void handleImpactSensor(EVT_Event_t *e)
+{
+  if (EVT_TYPE_IMPACT_SENSOR != e->type) {
+    return;
+  }
+
+  if (e != (EVT_Event_t *)&impactSensorEvent) {
+    return;
+  }
+
+  static unsigned long impactStart = 0;
+  int iv = impactSensorEvent.value;
+
+  if (iv < 512 && impactStart == 0) {
+    impactStart = millis();
+    Serial.println("IMPACT");
+
+    if (0 != TO_set(&to, TO_PARAM_IMPACT, 1)) {
+      Error(ERR_TO_SET);
+    }
+
+    // TODO: Previously this simply sped up the sync step rather than sync synchronously.
+    // That was better because it means there won't be a delay for stopping the rover.
+    // I need a better control flow to spearate out these inner and outer-loop behaviors.
+    syncTO();
+
+    changeSpeed(0, 0);
+  } else if (impactStart > 0 && iv > 512 && millis() - impactStart > 500) {
+    impactStart = 0;
+
+    if (0 > TO_set(&to, TO_PARAM_IMPACT, 0)) {
+      Error(ERR_TO_SET);
+    }
+
+    syncTO();
+  }
+}
+
+void handleMotorSpeed(EVT_Event_t *e)
+{
+  if (EVT_TYPE_MOTOR_SPEED != e->type) {
+    return;
+  }
+
+  if (e != (EVT_Event_t *)&motorSpeedEvent) {
+    return;
+  }
+
+  setMotor(0, motorSpeedEvent.Aval);
+  setMotor(1, motorSpeedEvent.Bval);
+
+  if (0 != TO_set(&to, TO_PARAM_MOTOR_A, motorSpeedEvent.Aval)) {
+    Error(ERR_TO_SET);
+  }
+  if (0 != TO_set(&to, TO_PARAM_MOTOR_B, motorSpeedEvent.Bval)) {
+    Error(ERR_TO_SET);
   }
 }
