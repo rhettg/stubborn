@@ -339,12 +339,14 @@ int scaleCmdDuration(uint8_t v)
     }
 }
 
+#define MIN_MOTOR_SPEED 150
+
 int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
-    motorASpeed = 150;
-    motorBSpeed = 150;
+    motorASpeed = MIN_MOTOR_SPEED;
+    motorBSpeed = MIN_MOTOR_SPEED;
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
@@ -355,44 +357,44 @@ int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 
 int handleCmdBck(uint8_t data[CI_MAX_DATA])
 {
-    uint8_t v1 = data[0];
+    uint8_t t1 = data[0];
 
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = -v1;
-      motorBSpeed = -v1;
+    motorASpeed = -MIN_MOTOR_SPEED;
+    motorBSpeed = -MIN_MOTOR_SPEED;
 
-      return CI_R_OK;
-    } else {
-      return CI_R_ERR_INVALID;
+    if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
+      Error(ERR_TMR_ENQUEUE);
     }
+
+    return CI_R_OK;
 }
 
 int handleCmdRT(uint8_t data[CI_MAX_DATA])
 {
-    uint8_t v1 = data[0];
+    uint8_t t1 = data[0];
 
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = v1;
-      motorBSpeed = -v1;
+    motorASpeed = MIN_MOTOR_SPEED;
+    motorBSpeed = -MIN_MOTOR_SPEED;
 
-      return CI_R_OK;
-    } else {
-      return CI_R_ERR_INVALID;
+    if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
+      Error(ERR_TMR_ENQUEUE);
     }
+
+    return CI_R_OK;
 }
 
 int handleCmdLT(uint8_t data[CI_MAX_DATA])
 {
-    uint8_t v1 = data[0];
+    uint8_t t1 = data[0];
 
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = -v1;
-      motorBSpeed = v1;
+    motorASpeed = -MIN_MOTOR_SPEED;
+    motorBSpeed = MIN_MOTOR_SPEED;
 
-      return CI_R_OK;
-    } else {
-      return CI_R_ERR_INVALID;
+    if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
+      Error(ERR_TMR_ENQUEUE);
     }
+
+    return CI_R_OK;
 }
 
 void handleCmd()
