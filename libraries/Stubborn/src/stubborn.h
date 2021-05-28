@@ -2,6 +2,7 @@
 #define STUBBORN_h
 
 // Mission specific values. These can be shared between the Rover and the Ground State
+#define EVT_MAX_HANDLERS 8 
 
 #define CI_CMD_EXT_STOP  4
 #define CI_CMD_EXT_FWD   5

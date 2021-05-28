@@ -28,8 +28,11 @@ int motorBSpeed = 0;
 
 #define MAX_TO_SIZE   60
 
+#define MAX_LOOP_DURATION 5
+
 // Mission specific event types will start at 64. CiC events fit under that.
 #define EVT_TYPE_SYNC_TO 64
+#define EVT_TYPE_CI_STOP 70
 
 // syncTOEvent is triggered to prepare and send a TO (telemetry output) packet.
 // There is only one as this is not something that will be used in more places.
@@ -39,8 +42,11 @@ struct {
 
 unsigned long lastTOSync = 0;
 
+EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
+
 #define ERR_UNKNOWN  1
 #define ERR_CMD      2
+#define ERR_SLOW_LOOP 3
 #define ERR_RFM_INIT 5
 #define ERR_RFM_FREQ 6
 #define ERR_RFM_RECV 7
@@ -121,6 +127,7 @@ void setup() {
 
   EVT_subscribe(&evt, &com_ci_notify);
   EVT_subscribe(&evt, &handleSyncTO);
+  EVT_subscribe(&evt, &handleCIStop);
 
   if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
     Error(ERR_CI_REGISTER);
@@ -228,9 +235,16 @@ void loop() {
     Error(ERR_TO_SET);
   }
 
-  if (0 != TO_set(&to, TO_PARAM_LOOP, millis()-loopStart)) {
+  unsigned long loopDuration = millis()-loopStart;
+  if (0 != TO_set(&to, TO_PARAM_LOOP, loopDuration)) {
     Error(ERR_TO_SET);
   }
+
+/*
+  if (MAX_LOOP_DURATION < loopDuration) {
+    Error(ERR_SLOW_LOOP);
+  }
+*/
 }
 
 void rfm_notify(EVT_Event_t *evt) {
@@ -316,18 +330,27 @@ int handleCmdStop(uint8_t data[CI_MAX_DATA])
     return CI_R_OK;
 }
 
+int scaleCmdDuration(uint8_t v)
+{
+    if (v == 0) {
+      return 1000;
+    } else {
+      return 100 * v;
+    }
+}
+
 int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 {
-    uint8_t v1 = data[0];
+    uint8_t t1 = data[0];
 
-    if (v1 > 0 && v1 < 256) {
-      motorASpeed = v1;
-      motorBSpeed = v1;
+    motorASpeed = 150;
+    motorBSpeed = 150;
 
-      return CI_R_OK;
-    } else {
-      return CI_R_ERR_INVALID;
+    if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
+      Error(ERR_TMR_ENQUEUE);
     }
+
+    return CI_R_OK;
 }
 
 int handleCmdBck(uint8_t data[CI_MAX_DATA])
@@ -464,6 +487,16 @@ void handleSyncTO(EVT_Event_t *e)
     if (0 != TMR_enqueue(&tmr, (EVT_Event_t *)&syncTOEvent, millis()+1000)) {
       Error(ERR_TMR_ENQUEUE);
     }
+}
+
+void handleCIStop(EVT_Event_t *e)
+{
+    if (EVT_TYPE_CI_STOP != e->type) {
+      return;
+    }
+
+    motorASpeed = 0;
+    motorBSpeed = 0;
 }
 
 void syncTO()

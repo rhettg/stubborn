@@ -9,7 +9,8 @@
 #define CI_CMD_BOOM  3
 
 #ifndef CI_MAX_CMDS
-#define CI_MAX_CMDS 4
+// TODO: How do I make these constants mission specific?
+#define CI_MAX_CMDS 10
 #endif
 
 #define CI_R_OK            0
