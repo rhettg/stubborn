@@ -1,6 +1,7 @@
 
 #include <SPI.h>
 #include <RH_RF69.h>
+#include <string.h>
 
 extern "C" {
 #include "stubborn.h"
@@ -368,43 +369,64 @@ void Error(uint8_t errno)
   }
 }
 
+bool isCmd(const char *tok, int tok_len, const char *cmd)
+{
+  if (tok_len < strlen(cmd))
+    return false;
+
+  return strncmp(tok, cmd, tok_len) == 0;
+}
+
 int parseCICommand(char *s) {
   uint8_t cmd = 0;
   uint8_t cmd_data[CI_MAX_DATA] = {0,0,0,0};
 
   uint8_t v1, v2;
 
-  if (strncmp(s, "NOOP", 5) == 0) {
+  int slen = strlen(s);
+  int clen = 0;
+  while (clen < slen && s[clen] != ' ' && s[clen] != '\n')
+    clen++;
+ 
+  if (isCmd(s, clen, "NOOP")) {
     cmd = CI_CMD_NOOP;
-  } else if (strncmp(s, "CLEAR", 6) == 0) {
+  } else if (isCmd(s, clen, "CLEAR")) {
     cmd = CI_CMD_CLEAR;
-  } else if (strncmp(s, "BOOM", 5) == 0) {
+  } else if (isCmd(s, clen, "BOOM")) {
     cmd = CI_CMD_BOOM;
-  } else if (strncmp(s, "FWD ", 4) == 0) {
+  } else if (isCmd(s, clen, "FWD")) {
     cmd = CI_CMD_EXT_FWD;
-    v1 = atoi(s+4);
-    if (v1 > 0 && v1 < 256) {
-      cmd_data[0] = v1;
+    if (slen > 3) {
+      v1 = atoi(s+4);
+      if (v1 > 0 && v1 < 256) {
+        cmd_data[0] = v1;
+      }
     }
-  } else if (strncmp(s, "BCK ", 4) == 0) {
+  } else if (isCmd(s, clen, "BCK")) {
     cmd = CI_CMD_EXT_BCK;
-    v1 = atoi(s+4);
-    if (v1 > 0 && v1 < 256) {
-      cmd_data[0] = v1;
+    if (slen > 3) {
+      v1 = atoi(s+4);
+      if (v1 > 0 && v1 < 256) {
+        cmd_data[0] = v1;
+      }
     }
-  } else if (strncmp(s, "RT ", 3) == 0) {
+  } else if (isCmd(s, clen, "RT")) {
     cmd = CI_CMD_EXT_RT;
-    v1 = atoi(s+3);
-    if (v1 > 0 && v1 < 256) {
-      cmd_data[0] = v1;
+    if (slen > 2) {
+      v1 = atoi(s+3);
+      if (v1 > 0 && v1 < 256) {
+        cmd_data[0] = v1;
+      }
     }
-  } else if (strncmp(s, "LT ", 3) == 0) {
+  } else if (isCmd(s, clen, "LT")) {
     cmd = CI_CMD_EXT_LT;
-    v1 = atoi(s+3);
-    if (v1 > 0 && v1 < 256) {
-      cmd_data[0] = v1;
+    if (slen > 2) {
+      v1 = atoi(s+3);
+      if (v1 > 0 && v1 < 256) {
+        cmd_data[0] = v1;
+      }
     }
-  } else if (strncmp(s, "STOP", 4) == 0) {
+  } else if (isCmd(s, clen, "STOP")) {
       cmd_data[0] = 0;
       cmd = CI_CMD_EXT_STOP;
   }
