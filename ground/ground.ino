@@ -402,6 +402,14 @@ int parseCICommand(char *s) {
         cmd_data[0] = v1;
       }
     }
+  } else if (isCmd(s, clen, "FFWD")) {
+    cmd = CI_CMD_EXT_FFWD;
+    if (slen > 4) {
+      v1 = atoi(s+5);
+      if (v1 > 0 && v1 < 256) {
+        cmd_data[0] = v1;
+      }
+    }
   } else if (isCmd(s, clen, "BCK")) {
     cmd = CI_CMD_EXT_BCK;
     if (slen > 3) {

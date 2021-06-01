@@ -9,7 +9,8 @@
 #define CI_CMD_EXT_RT    6
 #define CI_CMD_EXT_LT    7
 #define CI_CMD_EXT_BCK   8
-#define CI_MAX_CMDS 10
+#define CI_CMD_EXT_FFWD  9
+#define CI_MAX_CMDS 11
 
 #define TO_PARAM_ERROR    1
 #define TO_PARAM_MILLIS   2 

@@ -76,6 +76,9 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_EXT_FWD, &handleCmdFwd)) {
     Error(ERR_CI_REGISTER);
   }
+  if (0 != CI_register(&ci, CI_CMD_EXT_FFWD, &handleCmdFfwd)) {
+    Error(ERR_CI_REGISTER);
+  }
   if (0 != CI_register(&ci, CI_CMD_EXT_BCK, &handleCmdBck)) {
     Error(ERR_CI_REGISTER);
   }

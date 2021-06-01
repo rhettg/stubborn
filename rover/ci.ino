@@ -43,12 +43,26 @@ int scaleCmdDuration(uint8_t v)
 }
 
 #define MIN_MOTOR_SPEED 150
+#define MAX_MOTOR_SPEED 250
 
 int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
 
     changeSpeed(MIN_MOTOR_SPEED, MIN_MOTOR_SPEED);
+
+    if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
+      Error(ERR_TMR_ENQUEUE);
+    }
+
+    return CI_R_OK;
+}
+
+int handleCmdFfwd(uint8_t data[CI_MAX_DATA])
+{
+    uint8_t t1 = data[0];
+
+    changeSpeed(MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
 
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
