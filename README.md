@@ -79,7 +79,7 @@ Automated testing is currently limited to CiC library code. See more [here](libr
 
 Rather than rely on the Arduino IDE, scripts powered by `arduino-cli` are available. Wrapper scripts ([Scripts-To-Rule-Them-All](https://github.com/github/scripts-to-rule-them-all)) is available)
 
-* [`rover/script/build](rover/script/build)
-* [`rover/script/upload](rover/script/upload)
-* [`ground/script/build](ground/script/build)
-* [`ground/script/upload](ground/script/upload)
+* [`rover/script/build`](rover/script/build)
+* [`rover/script/upload`](rover/script/upload)
+* [`ground/script/build`](ground/script/build)
+* [`ground/script/upload`](ground/script/upload)
