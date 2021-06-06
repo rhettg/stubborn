@@ -7,6 +7,7 @@ extern "C" {
 #include "com.h"
 #include "ci.h"
 #include "tmr.h"
+#include "tbl.h"
 }
 
 #include "events.h"
@@ -28,11 +29,14 @@ EVT_Event_t syncTOEvent = {EVT_TYPE_SYNC_TO};
 
 EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
 
+#define TBL_VAL_IMPACT_ENABLE 1
+
 TO_t to   = {0};
 EVT_t evt = {0};
 TMR_t tmr = {0};
 COM_t com = {0};
-CI_t ci = {0};
+CI_t ci   = {0};
+TBL_t tbl = {0};
 
 void setup() {
   // put your setup code here, to run once:
@@ -50,6 +54,12 @@ void setup() {
   if (0 != TO_init(&to)) {
     Serial.println("FAIL: TO init");
     abort();
+  }
+
+  TBL_init(&tbl, &saveTable, &loadTable);
+
+  if (0 != TBL_set_default(&tbl, TBL_VAL_IMPACT_ENABLE, 1)) {
+    Error(ERR_TBL_SET);
   }
 
   rfmInit();

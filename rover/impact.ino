@@ -25,6 +25,16 @@ void handleImpactSensor(EVT_Event_t *e)
     return;
   }
 
+  uint16_t enabled = 0;
+
+  if (0 != TBL_get(&tbl, TBL_VAL_IMPACT_ENABLE, &enabled)) {
+    Error(ERR_TBL_GET);
+  }
+
+  if (0 == enabled) {
+    return;
+  }
+
   if (e != (EVT_Event_t *)&impactSensorEvent) {
     return;
   }
