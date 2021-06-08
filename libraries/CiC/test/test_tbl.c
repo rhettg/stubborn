@@ -14,24 +14,24 @@ void clear()
     memset(test_buffer, 0, sizeof(test_buffer));
 }
 
-int save(uint16_t *data, size_t data_len)
+int save(const void *data, size_t data_len)
 {
     memcpy(test_buffer, data, data_len);
     return 0;
 }
 
-int load(uint16_t *data, size_t data_len)
+int load(void *data, size_t data_len)
 {
     memcpy(data, test_buffer, data_len);
     return 0;
 }
 
-int save_fail(uint16_t *data, size_t data_len)
+int save_fail(const void *data, size_t data_len)
 {
     return -1;
 }
 
-int load_fail(uint16_t *data, size_t data_len)
+int load_fail(void *data, size_t data_len)
 {
     return -1;
 }

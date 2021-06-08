@@ -6,16 +6,14 @@ extern "C" {
 
 uint16_t EEMEM memtbl[TBL_SIZE+1];
 
-int saveTable(uint16_t *data, size_t data_len)
+int saveTable(const void *data, size_t data_len)
 {
-    // These are void* so the number of bytes is double because we are dealing in 2-byte words.
-    eeprom_write_block(data, (void *)memtbl, 2*data_len);
+    eeprom_write_block(data, (void *)memtbl, data_len);
     return 0;
 }
 
-int loadTable(uint16_t *data, size_t data_len)
+int loadTable(void *data, size_t data_len)
 {
-    // These are void* so the number of bytes is double because we are dealing in 2-byte words.
-    eeprom_read_block(data, (const void *)memtbl, 2*data_len);
+    eeprom_read_block(data, (const void *)memtbl, data_len);
     return 0;
 }

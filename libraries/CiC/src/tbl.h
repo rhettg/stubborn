@@ -11,8 +11,8 @@
 #define ERR_TBL_NOT_LOADED -5
 #define ERR_TBL_VAR -6
 
-typedef int (*TBL_save_func_t)(uint16_t *data, size_t data_len);
-typedef int (*TBL_load_func_t)(uint16_t *data, size_t data_len);
+typedef int (*TBL_save_func_t)(const void *data, size_t data_len);
+typedef int (*TBL_load_func_t)(void *data, size_t data_len);
 
 // TBL_t defines the Table Subsystem. 
 // The system is for storing a persistent table of data useful for configuration
