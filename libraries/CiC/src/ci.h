@@ -3,7 +3,6 @@
 
 #include "evt.h"
 
-// TODO: These commands should be mission specific.
 #define CI_CMD_NOOP  1
 #define CI_CMD_CLEAR 2
 #define CI_CMD_BOOM  3

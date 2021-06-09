@@ -377,64 +377,95 @@ bool isCmd(const char *tok, int tok_len, const char *cmd)
   return strncmp(tok, cmd, tok_len) == 0;
 }
 
+uint8_t parseUint8(const char *tok, int tok_len)
+{
+  char buf[4] = {0, 0, 0, 0};
+  if (sizeof(buf) < tok_len) {
+    return 0;
+  }
+
+  memcpy(buf, tok, tok_len);
+
+  return atoi(buf);
+}
+
 int parseCICommand(char *s) {
   uint8_t cmd = 0;
   uint8_t cmd_data[CI_MAX_DATA] = {0,0,0,0};
 
   uint8_t v1, v2;
 
-  int slen = strlen(s);
-  int clen = 0;
-  while (clen < slen && s[clen] != ' ' && s[clen] != '\n')
-    clen++;
- 
-  if (isCmd(s, clen, "NOOP")) {
+  char *tok_start[3] = {0, 0, 0};
+  int tok_len[3] = {0, 0, 0};
+
+  int tok = 0;
+  for(int i = 0; i < strlen(s); i++) {
+    if (0 == s[i] || '\n' == s[i]) {
+      break;
+    }
+
+    if (' ' == s[i]) {
+      // A tok_start of zero indicates we haven't yet found the beginning of our token.
+      if (0 != tok_start[tok]) {
+        tok++;
+      }
+      continue;
+    }
+
+    if (0 == tok_start[tok]) {
+      tok_start[tok] = &s[i];
+    }
+
+    tok_len[tok]++;
+  }
+
+  if (isCmd(tok_start[0], tok_len[0], "NOOP")) {
     cmd = CI_CMD_NOOP;
-  } else if (isCmd(s, clen, "CLEAR")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "CLEAR")) {
     cmd = CI_CMD_CLEAR;
-  } else if (isCmd(s, clen, "BOOM")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "BOOM")) {
     cmd = CI_CMD_BOOM;
-  } else if (isCmd(s, clen, "FWD")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "FWD")) {
     cmd = CI_CMD_EXT_FWD;
-    if (slen > 3) {
-      v1 = atoi(s+4);
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
       if (v1 > 0 && v1 < 256) {
         cmd_data[0] = v1;
       }
     }
-  } else if (isCmd(s, clen, "FFWD")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "FFWD")) {
     cmd = CI_CMD_EXT_FFWD;
-    if (slen > 4) {
-      v1 = atoi(s+5);
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
       if (v1 > 0 && v1 < 256) {
         cmd_data[0] = v1;
       }
     }
-  } else if (isCmd(s, clen, "BCK")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "BCK")) {
     cmd = CI_CMD_EXT_BCK;
-    if (slen > 3) {
-      v1 = atoi(s+4);
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
       if (v1 > 0 && v1 < 256) {
         cmd_data[0] = v1;
       }
     }
-  } else if (isCmd(s, clen, "RT")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "RT")) {
     cmd = CI_CMD_EXT_RT;
-    if (slen > 2) {
-      v1 = atoi(s+3);
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
       if (v1 > 0 && v1 < 256) {
         cmd_data[0] = v1;
       }
     }
-  } else if (isCmd(s, clen, "LT")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "LT")) {
     cmd = CI_CMD_EXT_LT;
-    if (slen > 2) {
-      v1 = atoi(s+3);
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
       if (v1 > 0 && v1 < 256) {
         cmd_data[0] = v1;
       }
     }
-  } else if (isCmd(s, clen, "STOP")) {
+  } else if (isCmd(tok_start[0], tok_len[0], "STOP")) {
       cmd_data[0] = 0;
       cmd = CI_CMD_EXT_STOP;
   }

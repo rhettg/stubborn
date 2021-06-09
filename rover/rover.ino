@@ -98,6 +98,9 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_EXT_LT, &handleCmdLT)) {
     Error(ERR_CI_REGISTER);
   }
+  if (0 != CI_register(&ci, CI_CMD_EXT_SET, &handleCmdSet)) {
+    Error(ERR_CI_REGISTER);
+  }
 
   // Send initial TO broadcast and start sync schedule.
   handleSyncTO((EVT_Event_t *)&syncTOEvent);
