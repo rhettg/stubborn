@@ -468,6 +468,16 @@ int parseCICommand(char *s) {
   } else if (isCmd(tok_start[0], tok_len[0], "STOP")) {
       cmd_data[0] = 0;
       cmd = CI_CMD_EXT_STOP;
+  } else if (isCmd(tok_start[0], tok_len[0], "SET")) {
+    cmd = CI_CMD_EXT_SET;
+    if (0 != tok_len[1]) {
+      v1 = parseUint8(tok_start[1], tok_len[1]);
+      cmd_data[0] = v1;
+    }
+    if (0 != tok_len[2]) {
+      v2 = parseUint8(tok_start[2], tok_len[2]);
+      cmd_data[3] = v2;
+    }
   }
 
   if (0 == cmd) {
