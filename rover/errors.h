@@ -10,3 +10,5 @@
 #define ERR_COM_SEND 20
 #define ERR_CI_REGISTER 30
 #define ERR_TMR_ENQUEUE 40
+#define ERR_TBL_SET 45
+#define ERR_TBL_GET 46

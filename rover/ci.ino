@@ -118,3 +118,17 @@ void handleCIStop(EVT_Event_t *e)
 
     changeSpeed(0, 0);
 }
+
+int handleCmdSet(uint8_t data[CI_MAX_DATA])
+{
+    uint8_t var = data[0];
+
+    uint16_t val = data[2] << 8 | data[3];
+
+    if (0 != TBL_set(&tbl, var, val)) {
+      Error(ERR_TBL_SET);
+      return CI_R_ERR_FAILED;
+    }
+
+    return CI_R_OK;
+}
