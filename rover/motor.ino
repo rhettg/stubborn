@@ -4,8 +4,9 @@ extern "C" {
     #include "errors.h"
 }
 
-uint8_t motorPin1[] = {9, 7};
-uint8_t motorPin2[] = {8, 6};
+uint8_t enablePin[] = {9, 10};
+uint8_t motorPin1[] = {8, 6};
+uint8_t motorPin2[] = {7, 5};
 
 struct {
   EVT_Event_t event = {EVT_TYPE_MOTOR_SPEED};
