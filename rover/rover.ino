@@ -13,8 +13,6 @@ extern "C" {
 #include "events.h"
 #include "errors.h"
 
-uint8_t enablePin[] = {10, 5};
-
 #define LED 13
 
 #define MAX_CMD       64
@@ -30,6 +28,8 @@ EVT_Event_t syncTOEvent = {EVT_TYPE_SYNC_TO};
 EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
 
 #define TBL_VAL_IMPACT_ENABLE 1
+#define TBL_VAL_MOTOR_BIAS_A  2
+#define TBL_VAL_MOTOR_BIAS_B  3
 
 TO_t to   = {0};
 EVT_t evt = {0};

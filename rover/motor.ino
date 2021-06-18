@@ -4,8 +4,9 @@ extern "C" {
     #include "errors.h"
 }
 
-uint8_t motorPin1[] = {9, 7};
-uint8_t motorPin2[] = {8, 6};
+uint8_t enablePin[] = {9, 10};
+uint8_t motorPin1[] = {8, 6};
+uint8_t motorPin2[] = {7, 5};
 
 struct {
   EVT_Event_t event = {EVT_TYPE_MOTOR_SPEED};
@@ -37,6 +38,11 @@ void changeSpeed(int A, int B)
 
 void setMotor(int motor, int speed) {
   int out = 0;
+  uint16_t bias = 0;
+
+  if (0 != TBL_get(&tbl, TBL_VAL_MOTOR_BIAS_A+motor, &bias)) {
+    Error(ERR_TBL_GET);
+  }
   
   if (speed > 0) {
     digitalWrite(motorPin1[motor], HIGH);
@@ -49,8 +55,13 @@ void setMotor(int motor, int speed) {
 
     out = -speed;
   }
+
+  if (out < bias) {
+    speed = 0;
+    bias = 0;
+  }
   
-  analogWrite(enablePin[motor], out);
+  analogWrite(enablePin[motor], out - bias);
 }
 
 void handleMotorSpeed(EVT_Event_t *e)
