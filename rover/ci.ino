@@ -44,6 +44,7 @@ int scaleCmdDuration(uint8_t v)
 
 #define MIN_MOTOR_SPEED 150
 #define MAX_MOTOR_SPEED 250
+#define QUARTER_TURN_DURATION 4
 
 int handleCmdFwd(uint8_t data[CI_MAX_DATA])
 {
@@ -90,6 +91,10 @@ int handleCmdRT(uint8_t data[CI_MAX_DATA])
 
     changeSpeed(MIN_MOTOR_SPEED, -MIN_MOTOR_SPEED);
 
+    if (0 == t1) {
+      t1 = QUARTER_TURN_DURATION;
+    }
+
     if (0 != TMR_enqueue(&tmr, &ciStopEvent, millis()+scaleCmdDuration(t1))) {
       Error(ERR_TMR_ENQUEUE);
     }
@@ -100,6 +105,10 @@ int handleCmdRT(uint8_t data[CI_MAX_DATA])
 int handleCmdLT(uint8_t data[CI_MAX_DATA])
 {
     uint8_t t1 = data[0];
+
+    if (0 == t1) {
+      t1 = QUARTER_TURN_DURATION;
+    }
 
     changeSpeed(-MIN_MOTOR_SPEED, MIN_MOTOR_SPEED);
 
