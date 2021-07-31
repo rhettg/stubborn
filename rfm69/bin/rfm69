@@ -4,18 +4,16 @@
 # can be tested with netcat (nc)
 #    echo "hello" | nc -U ./test
 #
-import socket
 import os
 import sys
 import signal
 import asyncio
-import time
 import functools
 import concurrent.futures
 import logging
 
 import busio
-from digitalio import DigitalInOut, Direction, Pull
+import digitalio
 import board
 import adafruit_rfm69
 
@@ -23,8 +21,8 @@ import adafruit_rfm69
 i2c = busio.I2C(board.SCL, board.SDA)
 
 # RFM69 Configuration
-CS = DigitalInOut(board.D5)
-RESET = DigitalInOut(board.D6)
+CS = digitalio.DigitalInOut(board.D5)
+RESET = digitalio.DigitalInOut(board.D6)
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
 def initialize_radio():
