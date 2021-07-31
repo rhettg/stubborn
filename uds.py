@@ -65,16 +65,17 @@ async def handle(reader, writer):
     logging.info("done handling")
 
 def shutdown(loop):
-    logging.info('received stop signal, cancelling tasks...')
+    logging.info('received stop signal, shutting down...')
     for task in asyncio.all_tasks():
         task.cancel()
 
-async def main():
+def setup_shutdown():
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGHUP, functools.partial(shutdown, loop))
     loop.add_signal_handler(signal.SIGINT, functools.partial(shutdown, loop))
     loop.add_signal_handler(signal.SIGTERM, functools.partial(shutdown, loop))
 
+def validate_args():
     try:
         socketName = sys.argv[1]
     except IndexError:
@@ -85,17 +86,26 @@ async def main():
         if os.path.exists(socketName):
             print("{} already exists".format(socketName), file=sys.stderr)
             sys.exit(1)
-    
-    logging.info("opening {}".format(socketName))
+
+    return socketName
+
+async def run(socketName):
+    setup_shutdown()
 
     server = await asyncio.start_unix_server(handle, path=socketName)
+
     try:
         async with server:
             await server.serve_forever()
     except asyncio.CancelledError:
         pass
+    logging.info("server stopped")
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    asyncio.run(main())
+
+    socketName = validate_args()
+    logging.info("starting server on {}".format(socketName))
+
+    asyncio.run(run(socketName))
     
