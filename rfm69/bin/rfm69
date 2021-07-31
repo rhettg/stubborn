@@ -14,7 +14,28 @@ import functools
 import concurrent.futures
 import logging
 
-import rfm69
+import busio
+from digitalio import DigitalInOut, Direction, Pull
+import board
+import adafruit_rfm69
+
+# Create the I2C interface.
+i2c = busio.I2C(board.SCL, board.SDA)
+
+# RFM69 Configuration
+CS = DigitalInOut(board.D5)
+RESET = DigitalInOut(board.D6)
+spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+
+def initialize_radio():
+    try:
+        rfm69 = adafruit_rfm69.RFM69(spi, CS, RESET, 915.0)
+        print('RFM69: Detected', 0, 0, 1)
+    except RuntimeError as error:
+        # Thrown on version mismatch
+        print('RFM69 Error: ', error)
+        sys.exit(1)
+    return rfm69
 
 def usage():
     print("usage: uds.py <name>", file=sys.stderr)
@@ -120,7 +141,7 @@ if __name__ == '__main__':
     socketName = validate_args()
 
     logging.info("starting radio")
-    radio = rfm69.initialize_radio()
+    radio = initialize_radio()
 
     logging.info("starting server on {}".format(socketName))
     asyncio.run(run(socketName))
