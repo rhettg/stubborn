@@ -14,6 +14,8 @@ import functools
 import concurrent.futures
 import logging
 
+import rfm69
+
 def usage():
     print("usage: uds.py <name>", file=sys.stderr)
     sys.exit(1)
@@ -21,16 +23,14 @@ def usage():
 radio = None
 
 def send_to_radio(radio, data):
-    # Simulate non-async blocking io
-    time.sleep(0.5)
+    radio.send(data)
     logging.info("TX: {}".format(data))
 
 def recv_from_radio(radio):
-    # Simulate non-async blocking io
-    time.sleep(0.5)
-    data = b'pong\n'
-    logging.info("RX: {}".format(data))
-    return data
+    packet = radio.receive()
+    if packet is not None:
+        logging.info("RX: {}".format(packet))
+    return packet
 
 async def handle_reader(reader):
     loop = asyncio.get_running_loop()
@@ -39,19 +39,28 @@ async def handle_reader(reader):
         if len(req) == 0:
             break
 
+        # The radio only supports packets up to 60 bytes. It's up to the client
+        # to handle it's own framing.
+        if len(req) > 60:
+            logging.error("client request too large ({})".format(len(req)))
+            break
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            result = await loop.run_in_executor(pool, functools.partial(send_to_radio, radio, req))
+            await loop.run_in_executor(pool, functools.partial(send_to_radio, radio, req))
 
     logging.info("handle_reader: done")
 
 async def handle_writer(writer):
     loop = asyncio.get_running_loop()
     while True:
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            result = await loop.run_in_executor(pool, functools.partial(recv_from_radio, radio))
+        if radio.payload_ready():
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                result = await loop.run_in_executor(pool, functools.partial(recv_from_radio, radio))
 
-        writer.write(result) 
-        await writer.drain()
+            writer.write(result) 
+            await writer.drain()
+        else:
+            await asyncio.sleep(0.001)
 
     logging.info("handle_writer: done")
 
@@ -61,6 +70,9 @@ async def handle(reader, writer):
     writer_task = asyncio.create_task(handle_writer(writer))
     await handle_reader(reader)
     writer_task.cancel()
+
+    writer.close()
+    await writer.wait_closed()
 
     logging.info("done handling")
 
@@ -101,11 +113,15 @@ async def run(socketName):
         pass
     logging.info("server stopped")
 
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     socketName = validate_args()
-    logging.info("starting server on {}".format(socketName))
 
+    logging.info("starting radio")
+    radio = rfm69.initialize_radio()
+
+    logging.info("starting server on {}".format(socketName))
     asyncio.run(run(socketName))
     
