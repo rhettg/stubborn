@@ -1,8 +1,11 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
+#include <string.h>
 
 #include "command.h"
 #include "ci.h"
+#include "stubborn.h"
 
 
 bool is_cmd(const char *tok, int tok_len, const char *cmd)
@@ -11,6 +14,12 @@ bool is_cmd(const char *tok, int tok_len, const char *cmd)
     return false;
 
   return strncmp(tok, cmd, tok_len) == 0;
+}
+
+unsigned long millis()
+{
+  time_t t = time(NULL);
+  return t;
 }
 
 uint8_t parse_uint8(const char *tok, int tok_len)
@@ -25,11 +34,10 @@ uint8_t parse_uint8(const char *tok, int tok_len)
   return atoi(buf);
 }
 
-int parse_ci_command(char *s) {
-  uint8_t cmd = 0;
-  uint8_t cmd_data[CI_MAX_DATA] = {0,0,0,0};
-
+int parse_ci_command(CI_t *ci, char *s) {
   uint8_t v1, v2;
+  uint8_t cmd = 0;
+  uint8_t cmd_data[CI_MAX_DATA] = {0, 0, 0, 0};
 
   char *tok_start[3] = {0, 0, 0};
   int tok_len[3] = {0, 0, 0};
@@ -120,50 +128,9 @@ int parse_ci_command(char *s) {
     return ERR_UNKNOWN;
   }
 
-  if (0 != CI_prepare_send(&ci, cmd, cmd_data, millis())) {
+  if (0 != CI_prepare_send(ci, cmd, cmd_data, millis())) {
     return ERR_CI_SEND_FAIL;
   }
 
   return 0;
-}
-
-#define CR '\r'
-#define LF '\n'
-#define BS '\b'
-#define NULLCHAR '\0'
-#define SPACE ' '
-
-/*************************************************************************************************************
-    getCommandLineFromSerialPort()
-      Return the string of the next command. Commands are delimited by return"
-      Handle BackSpace character
-      Make all chars lowercase
-
-    Adapted from https://create.arduino.cc/projecthub/mikefarr/simple-command-line-interface-4f0a3f
-*************************************************************************************************************/
-
-int feed_command_data(char *c_buf, size_t *c_ndx, char *data, size_t data_len)
-{
-  for(int n = 0; n < data_len; n++) {
-    switch (data[n]) {
-      case CR:      //likely have full command in buffer now, commands are terminated by CR and/or LS
-      case LF:
-        c_buf[c_ndx] = NULLCHAR;
-        c_ndx = 0;
-        return n;
-        break;
-      case BS:
-        if (c_ndx > 0) {
-          c_buf[--c_ndx] = NULLCHAR;
-        }
-        break;
-      default:
-        if (c_ndx < MAX_COMMAND_LENGTH) {
-          c_buf[c_ndx++] = data[n];
-        }
-        c_buf[c_ndx] = NULLCHAR;
-        break;
-    }
-  }
-  return -1;
 }

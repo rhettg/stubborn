@@ -6,15 +6,24 @@
 #include <errno.h>
 
 #include "evt.h"
+#include "com.h"
+#include "ci.h"
 
 #include "command.h"
 
 EVT_t evt = {0};
+COM_t com = {0};
+CI_t  ci  = {0};
 
 void fatal(const char *msg)
 {
     fprintf(stderr, "%s\n", msg);
     exit(1);
+}
+
+void debugEvent(EVT_Event_t *e)
+{
+    printf("Event: %d\n", e->type);
 }
 
 int open_client_sock()
@@ -55,9 +64,6 @@ int run_server(int server)
     size_t rlen;
     fd_set set;
 
-    char command_buf[1024];
-    size_t command_len = 0;
-
     printf("starting server\n");
 
     while (1) {
@@ -96,8 +102,18 @@ int run_server(int server)
             if (0 < rlen) {
                 buf[rlen] = 0;
                 printf("RX: %s\n", buf);
-                int rfcd = feed_command_data(command_buf, &command_len, buf, rlen);
-                
+                int rp = parse_ci_command(&ci, buf);
+                if (0 != rp) {
+                    fprintf(stderr, "failed parsing: %d\n", rp);
+                    if (0 > send(c_fd, "ERR\n", 4, 0)) {
+                        perror("failed to report error");
+                    }
+                } else {
+                    // It isn't OK yet actually.
+                    if (0 > send(c_fd, "OK\n", 4, 0)) {
+                        perror("failed to report error");
+                    }
+                }
             } else {
                 printf("closing client\n");
                 close(c_fd);
@@ -114,6 +130,10 @@ int main(int argc, char const *argv[])
     int fd;
 
     EVT_init(&evt);
+    com.evt = &evt;
+    ci.evt = &evt;
+
+    EVT_subscribe(&evt, &debugEvent);
 
     fd = open_client_sock();
     if (0 > fd) {
