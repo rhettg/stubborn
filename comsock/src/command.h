@@ -15,5 +15,6 @@
 #define ERR_CI_ACK_FAIL  31
 
 int parse_ci_command(CI_t *ci, char *s);
+unsigned long millis();
 
 #endif

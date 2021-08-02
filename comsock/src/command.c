@@ -3,10 +3,11 @@
 #include <time.h>
 #include <string.h>
 
-#include "command.h"
 #include "ci.h"
-#include "stubborn.h"
+#include "com.h"
 
+#include "command.h"
+#include "stubborn.h"
 
 bool is_cmd(const char *tok, int tok_len, const char *cmd)
 {
@@ -14,12 +15,6 @@ bool is_cmd(const char *tok, int tok_len, const char *cmd)
     return false;
 
   return strncmp(tok, cmd, tok_len) == 0;
-}
-
-unsigned long millis()
-{
-  time_t t = time(NULL);
-  return t;
 }
 
 uint8_t parse_uint8(const char *tok, int tok_len)
