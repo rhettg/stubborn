@@ -21,7 +21,7 @@ build/%.o: %.c $(HEADERS)
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): main.c $(OBJECTS) $(CICOBJECTS)
-	$(CC) $(CFLAGS) $< $(OBJECTS) $(CICOBJECTS) -Wall $(LIBS) -o $@
+	$(CC) $(CFLAGS) $< $(OBJECTS) $(CICOBJECTS) -ICiC -Wall $(LIBS) -o $@
 
 clean:
 	-rm -f $(OBJDIR)/*.o $(TARGET)
