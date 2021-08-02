@@ -7,6 +7,8 @@
 
 #include "evt.h"
 
+#include "command.h"
+
 EVT_t evt = {0};
 
 void fatal(const char *msg)
@@ -53,11 +55,13 @@ int run_server(int server)
     size_t rlen;
     fd_set set;
 
+    char command_buf[1024];
+    size_t command_len = 0;
+
     printf("starting server\n");
 
     while (1) {
         FD_ZERO(&set);
-        
         if (0 == c_fd) {
             FD_SET(server, &set);
         } else {
@@ -92,6 +96,8 @@ int run_server(int server)
             if (0 < rlen) {
                 buf[rlen] = 0;
                 printf("RX: %s\n", buf);
+                int rfcd = feed_command_data(command_buf, &command_len, buf, rlen);
+                
             } else {
                 printf("closing client\n");
                 close(c_fd);
