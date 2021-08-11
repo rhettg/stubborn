@@ -33,6 +33,7 @@ def initialize_radio():
         # Thrown on version mismatch
         print('RFM69 Error: ', error)
         sys.exit(1)
+
     return rfm69
 
 def usage():
@@ -52,6 +53,8 @@ def recv_from_radio(radio):
     return packet
 
 async def handle_reader(reader):
+    logging.info("handle_reader: start")
+
     loop = asyncio.get_running_loop()
     while True:
         req = await reader.read(1024)
@@ -70,7 +73,11 @@ async def handle_reader(reader):
     logging.info("handle_reader: done")
 
 async def handle_writer(writer):
+    logging.info("handle_writer: start")
     loop = asyncio.get_running_loop()
+
+    radio.listen()
+
     while True:
         if radio.payload_ready():
             with concurrent.futures.ThreadPoolExecutor() as pool:
