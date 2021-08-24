@@ -106,4 +106,20 @@ int TBL_set(TBL_t *tbl, uint8_t tbl_var, uint16_t value);
  */
 int TBL_get(TBL_t *tbl, uint8_t tbl_var, uint16_t *value);
 
+/*
+ * TBL_load loads the table data structures based on the user-defined load function.
+ *
+ * @param tbl Table instance
+ * 
+ */
+int TBL_load(TBL_t *tbl);
+
+/*
+ * TBL_save saves the table data structures based on the user-defined save function.
+ *
+ * @param tbl Table instance
+ * 
+ */
+int TBL_save(TBL_t *tbl);
+
 #endif
