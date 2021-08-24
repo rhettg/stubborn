@@ -21,6 +21,9 @@ typedef struct {
     uint32_t data;
 } TO_Object_t;
 
+// On the wire, this is how large an objects should be.
+#define TO_OBJECT_SIZE 5
+
 /**
  * TO_t Telemetry Output component tracks multiple parameters and provides
  * interfaces for encoding them for transmission.
@@ -61,4 +64,16 @@ int TO_set(TO_t *to, uint8_t param, uint32_t value);
  * @returns size of encoded telemetry data for use in sending through a communication channel.
  */
 size_t TO_encode(TO_t *to, uint8_t *buf, size_t size);
+
+/*
+ * TO_decode decodes the telemetry buffer into a TO_t struct.
+ * 
+ * @param to Pointer to TO_t component.
+ * @param buf Pointer to data buffer
+ * @param size size of data buffer
+ * 
+ * @returns count of decoded objects
+ */
+int TO_decode(TO_t *to, uint8_t *buf, size_t size);
+
 #endif
