@@ -40,14 +40,37 @@ size_t TO_encode(TO_t *to, uint8_t *buf, size_t size)
             continue;
         }
 
-        if (available < sizeof(TO_Object_t)) {
+        if (available < TO_OBJECT_SIZE) {
             continue;
         }
 
-        memcpy(b, &(to->objects[n]), sizeof(TO_Object_t));
-        b += sizeof(TO_Object_t);
-        available -= sizeof(TO_Object_t);
+        b[0] = to->objects[n].param;
+        memcpy(b+1, &(to->objects[n].data), 4);
+
+        b += TO_OBJECT_SIZE;
+        available -= TO_OBJECT_SIZE;
     }
 
     return b - buf;
+}
+
+int TO_decode(TO_t *to, uint8_t *buf, size_t size)
+{
+    int bn = 0;
+    int n = 0;
+    while (bn+TO_OBJECT_SIZE <= size) {
+        if (n >= TO_MAX_PARAMS) {
+            return -1;
+        }
+
+        to->objects[n].param = buf[bn];
+
+        memcpy((uint8_t *)(&to->objects[n].data), buf+bn+1, 4);
+
+        bn += TO_OBJECT_SIZE;
+
+        n++;
+    }
+
+    return n;
 }

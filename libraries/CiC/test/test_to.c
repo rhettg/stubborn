@@ -75,15 +75,18 @@ static char * test_encode() {
     uint8_t *data = malloc(1024);
 
     int encoded = TO_encode(&to, data, 1024);
-    mu_assert("test_encode: wrong size", encoded == sizeof(TO_Object_t)*2);
+    mu_assert("test_encode: wrong size", encoded == TO_OBJECT_SIZE*2);
 
-    TO_Object_t *tobj = (TO_Object_t *)data;
-    mu_assert("test_encode: wrong param", tobj->param == 1);
-    mu_assert("test_encode: wrong value", tobj->data == 42);
+    TO_t to2;
+    TO_init(&to2);
+    int decoded = TO_decode(&to2, data, encoded);
+    mu_assert("test_encode: decoded wrong elements", 2 == decoded);
 
-    tobj++;
-    mu_assert("test_encode: wrong param 2", tobj->param == 2);
-    mu_assert("test_encode: wrong value 2", tobj->data == 1024);
+    mu_assert("test_encode: wrong param", to2.objects[0].param == 1);
+    mu_assert("test_encode: wrong value", to2.objects[0].data == 42);
+
+    mu_assert("test_encode: wrong param 2", to2.objects[1].param == 2);
+    mu_assert("test_encode: wrong value 2", to2.objects[1].data == 1024);
 
     free(data);
 
