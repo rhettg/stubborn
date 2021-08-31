@@ -19,6 +19,8 @@ COM_t com = {0};
 CI_t  ci  = {0};
 
 int current_client = 0;
+int radio = 0;
+int server = 0;
 
 FILE *to_file = {0};
 
@@ -100,7 +102,7 @@ int open_radio_sock()
     return fd;
 }
 
-int run_server(int server, int radio)
+int run_server()
 {
     char buf[1024];
     size_t rlen;
@@ -126,11 +128,17 @@ int run_server(int server, int radio)
         }
 
         if (0 != FD_ISSET(radio, &set)) {
-            printf("reading data from radio\n");
             rlen = read(radio, buf, sizeof(buf));
             if (rlen < 0 && EAGAIN != errno) {
                 fprintf(stderr, "failed reading: %d\n", errno);
                 rlen = 0;
+            }
+
+            if (0 == rlen) {
+              fprintf(stderr, "radio closed, exiting\n");
+              close(radio);
+              radio = 0;
+              return 0;
             }
 
             printf("read %d bytes\n", rlen);
@@ -198,9 +206,14 @@ void rfm_notify(EVT_Event_t *evt) {
   }
   printf("\n");
 #endif
-  printf("TX: (%lu len)", d_evt->length);
-  //rf69.send(d_evt->data, d_evt->length);
-  //rf69.waitPacketSent();
+  printf("TX: (%lu len)\n", d_evt->length);
+
+  int n = write(radio, d_evt->data, d_evt->length);
+  if (0 > n) {
+    perror("failed to write");
+  } else if (n < d_evt->length) {
+    printf("short write: %d %d\n", n , d_evt->length);
+  }
 }
 
 void ci_r_notify(EVT_Event_t *evt) {
@@ -319,9 +332,6 @@ void to_notify(EVT_Event_t *evt) {
 
 int main(int argc, char const *argv[])
 {
-    int client_fd, radio_fd;
-
-
     EVT_init(&evt);
     com.evt = &evt;
     ci.evt = &evt;
@@ -338,17 +348,17 @@ int main(int argc, char const *argv[])
       exit(1);
     }
 
-    client_fd = open_client_sock();
-    if (0 > client_fd) {
+    server = open_client_sock();
+    if (0 > server) {
         exit(1);
     }
 
-    radio_fd = open_radio_sock();
-    if (0 > radio_fd) {
+    radio = open_radio_sock();
+    if (0 > radio) {
         exit(1);
     }
 
-    if (0 != run_server(client_fd, radio_fd)) {
+    if (0 != run_server()) {
         fprintf(stderr, "server failed\n");
         exit(1);
     }
