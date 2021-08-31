@@ -9,6 +9,8 @@
 #include "evt.h"
 #include "com.h"
 #include "ci.h"
+#include "to.h"
+#include "stubborn.h"
 
 #include "command.h"
 
@@ -17,6 +19,8 @@ COM_t com = {0};
 CI_t  ci  = {0};
 
 int current_client = 0;
+
+FILE *to_file = {0};
 
 void fatal(const char *msg)
 {
@@ -33,6 +37,17 @@ unsigned long millis()
 {
   time_t t = time(NULL);
   return t;
+}
+
+int open_to_file()
+{
+  to_file = fopen("/var/stubborn/to", "wa");
+  if (NULL == to_file) {
+    perror("failed to open /var/stubborn/to");
+    return -1;
+  }
+
+  return 0;
 }
 
 int open_client_sock()
@@ -66,7 +81,26 @@ int open_client_sock()
     return fd;
 }
 
-int run_server(int server)
+int open_radio_sock()
+{
+    struct sockaddr_un addr;
+    int fd;
+
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, "/var/stubborn/radio", sizeof(addr.sun_path)-1);
+
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+      perror("connect error");
+      return -1;
+    }
+
+    return fd;
+}
+
+int run_server(int server, int radio)
 {
     char buf[1024];
     size_t rlen;
@@ -76,19 +110,37 @@ int run_server(int server)
 
     while (1) {
         FD_ZERO(&set);
+
+        FD_SET(radio, &set);
+
         if (0 == current_client) {
             FD_SET(server, &set);
         } else {
             FD_SET(current_client, &set);
         }
 
-        printf("waiting for io\n");
         int ret = select(FD_SETSIZE, &set, NULL, NULL, NULL);
         if (0 > ret) {
             perror("failed to select");
             continue;
         }
-        printf("io ready\n");
+
+        if (0 != FD_ISSET(radio, &set)) {
+            printf("reading data from radio\n");
+            rlen = read(radio, buf, sizeof(buf));
+            if (rlen < 0 && EAGAIN != errno) {
+                fprintf(stderr, "failed reading: %d\n", errno);
+                rlen = 0;
+            }
+
+            printf("read %d bytes\n", rlen);
+
+            int cret = COM_recv(&com, (uint8_t *)buf, rlen);
+            if (cret != 0) {
+              printf("error from COM: %d\n", cret);
+              continue;
+            }
+        }
 
         if (0 != FD_ISSET(server, &set)) {
             printf("accepting to connection\n");
@@ -202,9 +254,73 @@ void ci_ack_notify(EVT_Event_t *evt)
   }
 }
 
+void to_notify(EVT_Event_t *evt) {
+  if (COM_EVT_TYPE_TO != evt->type) {
+    return;
+  }
+
+  COM_TO_Event_t *to_evt = (COM_TO_Event_t *)evt;
+
+  TO_t to = {0};
+  if (0 != TO_init(&to)) {
+    printf("failed to init to\n");
+    return;
+  }
+
+  int toN = TO_decode(&to, to_evt->data, to_evt->length);
+  if (0 > toN) {
+    printf("failed to decode to data: %d\n", toN);
+    return;
+  }
+
+  // Nothing to do if we don't have a place to write the data
+  if (NULL == to_file) {
+    return;
+  }
+
+  fprintf(to_file, "NOW=%lu\t", millis());
+
+  for (int i = 0; i < TO_MAX_PARAMS; i++) {
+    if (0 == to.objects[i].param) {
+      continue;
+    }
+
+    if (TO_PARAM_ERROR == to.objects[i].param)  {
+      fprintf(to_file, "ERR=%d", to.objects[i].data);
+    } else if (TO_PARAM_MILLIS == to.objects[i].param) {
+      fprintf(to_file, "UP=%lu", (unsigned long)to.objects[i].data / 1000);
+    } else if (TO_PARAM_LOOP == to.objects[i].param) {
+      fprintf(to_file, "LOOP=%lu", (unsigned long)to.objects[i].data);
+    } else if (TO_PARAM_COM_SEQ == to.objects[i].param) {
+      fprintf(to_file, "COM=%d", to.objects[i].data);
+    } else if (TO_PARAM_IMPACT == to.objects[i].param) {
+      if (to.objects[i].data > 0) {
+        fprintf(to_file, "IMPACT=1");
+      } else {
+        fprintf(to_file, "IMPACT=0");
+      }
+    } else if (TO_PARAM_MOTOR_A == to.objects[i].param) {
+      fprintf(to_file, "MOTORA=%d", to.objects[i].data);
+    } else if (TO_PARAM_MOTOR_B == to.objects[i].param) {
+      fprintf(to_file, "MOTORB=%d", to.objects[i].data);
+    } else if (TO_PARAM_RFM_RSSI == to.objects[i].param) {
+      fprintf(to_file, "RSSI=%d", to.objects[i].data);
+    } else {
+      fprintf(to_file, "%d=0x%08x", to.objects[i].param, to.objects[i].data);
+    }
+    fprintf(to_file, "\t");
+  }
+
+  fprintf(to_file, "\n");
+  fflush(to_file);
+
+  return;
+}
+
 int main(int argc, char const *argv[])
 {
-    int fd;
+    int client_fd, radio_fd;
+
 
     EVT_init(&evt);
     com.evt = &evt;
@@ -213,19 +329,32 @@ int main(int argc, char const *argv[])
     EVT_subscribe(&evt, &debugEvent);
 
     EVT_subscribe(&evt, &rfm_notify);
-    //EVT_subscribe(&evt, &to_notify);
+    EVT_subscribe(&evt, &to_notify);
     EVT_subscribe(&evt, &ci_r_notify);
     EVT_subscribe(&evt, &ci_ready_notify);
     EVT_subscribe(&evt, &ci_ack_notify);
 
-    fd = open_client_sock();
-    if (0 > fd) {
+    if (0 != open_to_file()) {
+      exit(1);
+    }
+
+    client_fd = open_client_sock();
+    if (0 > client_fd) {
         exit(1);
     }
 
-    if (0 != run_server(fd)) {
+    radio_fd = open_radio_sock();
+    if (0 > radio_fd) {
+        exit(1);
+    }
+
+    if (0 != run_server(client_fd, radio_fd)) {
         fprintf(stderr, "server failed\n");
         exit(1);
+    }
+
+    if (NULL != to_file) {
+      fclose(to_file);
     }
 
     return 0;
