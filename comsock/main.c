@@ -43,7 +43,7 @@ unsigned long millis()
 
 int open_to_file()
 {
-  to_file = fopen("/var/stubborn/to", "wa");
+  to_file = fopen("/var/stubborn/to", "a");
   if (NULL == to_file) {
     perror("failed to open /var/stubborn/to");
     return -1;
