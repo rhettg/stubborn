@@ -43,7 +43,7 @@ def usage():
 radio = None
 
 def send_to_radio(radio, data):
-    radio.send(data)
+    radio.send(data, keep_listening=True)
     logging.info("TX: {}".format(data))
 
 def recv_from_radio(radio):
