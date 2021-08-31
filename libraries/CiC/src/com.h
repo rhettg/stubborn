@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "evt.h"
+#include "tmr.h"
 
 // Command Ingest
 #define COM_TYPE_CI   1
@@ -40,6 +41,8 @@ typedef struct {
  */
 typedef struct {
     EVT_t   *evt;
+    TMR_t   *tmr;
+    unsigned long recv_at;
     uint8_t data_buf[COM_MAX_LENGTH];
     size_t data_len;
 } COM_t;
@@ -90,6 +93,16 @@ typedef struct {
 // Event to indicate a message of type COM_TYPE_TO has been received.
 #define COM_EVT_TYPE_TO   13 
 
+/*
+ * COM_init initializes the communications structure with the dependencies.
+ *
+ * @param com The COM_t component to initialize.
+ * @param evt The EVT_t subsystem to dispatch events to.
+ * @param tmr The TMR_t subsystem for setting timers.
+ * 
+ */
+void COM_init(COM_t *com, EVT_t *evt, TMR_t *tmr);
+
 /**
  *  COM_recv ingests raw communication data into the com system.
  *
@@ -103,8 +116,9 @@ typedef struct {
  * @param com The COM_t component to use.
  * @param data Pointer to the data buffer.
  * @param length Length of received data.
+ * @param now Current time (milliseconds)
 */
-int COM_recv(COM_t *com, uint8_t *data, size_t length);
+int COM_recv(COM_t *com, uint8_t *data, size_t length, unsigned long now);
 
 /**
  * COM_send_ci builds and emits a communications packet of type COM_TYPE_CI
@@ -118,12 +132,13 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length);
  * @param cmd_num The sequence number for the CI command.
  * @param data Pointer to data for the command.
  * @param length Length of data for the command.
+ * @param now Current time (milliseconds)
  * 
  * @return 0 on ok, -1 on error like insufficent buffer space.
  * 
  * \sa ci.h
  */
-int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t length);
+int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t length, unsigned long now);
 
 /**
  * COM_send_ci_r builds and emits a communications packet of type COM_TYPE_CI_R
@@ -135,12 +150,13 @@ int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t 
  * @param com The COM_t component to use.
  * @param cmd_num The sequence number for the CI command.
  * @param result Result of command operation.
+ * @param now Current time (milliseconds)
  * 
  * @return 0 on ok, -1 on error like insufficent buffer space.
  * 
  * \sa ci.h
  */
-int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result);
+int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result, unsigned long now);
 
 /**
  * COM_send_to builds and emits a communications packet of type COM_TYPE_TO
@@ -152,13 +168,13 @@ int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result);
  * @param com The COM_t component to use.
  * @param data Pointer to data for the command.
  * @param length Length of data for the command.
+ * @param now Current time (milliseconds)
  * 
  * @return 0 on ok, -1 on error like insufficent buffer space.
  * 
  * \sa to.h
  */
 int COM_send_to(COM_t *com, uint8_t *data, size_t length);
-
 
 /**
  * COM_send_retry retries the last sent packet.

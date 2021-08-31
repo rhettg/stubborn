@@ -16,7 +16,15 @@ static uint8_t encode_header(uint8_t type)
     return COM_VERSION << 4 | type;
 }
 
-int COM_recv(COM_t *com, uint8_t *data, size_t length)
+void COM_init(COM_t *com, EVT_t *evt, TMR_t *tmr)
+{
+    com->evt = evt;
+    com->tmr = tmr;
+    com->recv_at = 0;
+    com->data_len = 0;
+}
+
+int COM_recv(COM_t *com, uint8_t *data, size_t length, unsigned long now)
 {
     uint8_t *payload = data;
     size_t payload_length = length;
@@ -29,6 +37,8 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length)
     if (COM_VERSION != COM_version(frame)) {
         return -1;
     }
+
+    com->recv_at = now;
 
     payload += sizeof(COM_Frame_t);
     payload_length -= sizeof(COM_Frame_t);
