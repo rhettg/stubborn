@@ -5,6 +5,15 @@
 #include "evt.h"
 #include "tmr.h"
 
+#ifndef htons
+// From https://github.com/arduino-libraries/Ethernet/blob/7c32bbe146bbe762093e4f021c3b12d7bf8d1629/src/utility/w5100.h
+// The host order of the Arduino platform is little endian.
+// Sometimes it is desired to convert to big endian (or
+// network order)
+#define htons(x) ( ((( x )&0xFF)<<8) | ((( x )&0xFF00)>>8) )
+#define ntohs(x) htons(x)
+#endif
+
 // COM has two types of communication patterns:
 //  * Request / Reply - Each request is expected to have a reply
 //  * Broadcast -  No reply expected
