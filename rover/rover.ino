@@ -70,6 +70,7 @@ void setup() {
   rfmInit();
   motorInit();
 
+  EVT_subscribe(&evt, &COM_notify);
   EVT_subscribe(&evt, &com_ci_notify);
   EVT_subscribe(&evt, &handleSyncTO);
   EVT_subscribe(&evt, &handleCIStop);
