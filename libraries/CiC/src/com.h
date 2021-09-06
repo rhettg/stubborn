@@ -23,6 +23,13 @@
 
 #define COM_VERSION  2
 
+// How long to wait after receiving a packet to allow replying.
+// This is necessary to deal with single-duplex radios that need to be switched
+// into receive mode.
+#define COM_SEND_DELAY 500
+
+#define COM_SEND_RETRY 1000
+
 /*
  * COM_Frame_t is the header frame for all COM messages. 
  * 
@@ -38,13 +45,23 @@ typedef struct {
 // the physical communication system can send and receive.
 #define COM_MAX_LENGTH 60
 
+// Event to indicate we should consider sending out the payload
+#define COM_EVT_TYPE_DISPATCH 13
+
+typedef struct COM COM_t;
+
+typedef struct {
+    EVT_Event_t event;
+    COM_t *com;
+} COM_Dispatch_Event_t;
+
 /*
  * COM_t is the communications component.
  * 
  * It requires a pointer to an EVT_t component to dispatch events based on received data.
  * The data buffer is used for sending new messages.
  */
-typedef struct {
+typedef struct COM {
     EVT_t   *evt;
     TMR_t   *tmr;
 
@@ -55,55 +72,12 @@ typedef struct {
     // is ready.
     unsigned long last_recv_at;
 
-    // sent_at marks when the current packet was (last) sent. This is helpful for determining when we should 
-    // attempt retries.
-    unsigned long sent_at;
+    COM_Dispatch_Event_t dispatch_event;
 
-    // ack_at marks when the current packet was acknowledged. This only applies to req/reply.
-    unsigned long ack_at;
-
+    uint8_t msg_type;
     size_t data_len;
     uint8_t data_buf[COM_MAX_LENGTH];
 } COM_t;
-
-/*
-typedef struct {
-    uint8_t cmd;
-    uint8_t cmd_num;
-} COM_CI_Frame_t;
-
-typedef struct {
-    EVT_Event_t event;
-    COM_CI_Frame_t *frame;
-    uint8_t *data;
-    size_t length;
-} COM_CI_Event_t;
-
-typedef struct {
-    uint8_t cmd_num;
-    uint8_t result;
-} COM_CI_R_Frame_t;
-
-typedef struct {
-    EVT_Event_t event;
-    COM_CI_R_Frame_t *frame;
-} COM_CI_R_Event_t;
-
-typedef struct {
-    EVT_Event_t event;
-    uint8_t *data;
-    size_t length;
-} COM_TO_Event_t;
-
-// Event to indicate a message of type COM_TYPE_CI has been received.
-#define COM_EVT_TYPE_CI   11
-
-// Event to indicate a message of type COM_TYPE_CI_R has been received.
-#define COM_EVT_TYPE_CI_R 12 
-
-// Event to indicate a message of type COM_TYPE_TO has been received.
-#define COM_EVT_TYPE_TO   13 
-*/
 
 // Event to indicate data is available for sending via communications device.
 #define COM_EVT_TYPE_DATA 10
@@ -134,6 +108,16 @@ typedef struct {
  * 
  */
 void COM_init(COM_t *com, EVT_t *evt, TMR_t *tmr);
+
+/*
+ * COM_notify should be called to receive dispatch events.
+ *
+ *     EVT_subscribe(&evt, &COM_notify)
+ * 
+ * This is necessary to support retries and delayed sending.
+ *
+ */
+void COM_notify(EVT_Event_t *event);
 
 /**
  *  COM_recv ingests raw communication data into the com system.
