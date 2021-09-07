@@ -7,6 +7,7 @@
 import os
 import sys
 import signal
+import time
 import asyncio
 import functools
 import concurrent.futures
@@ -43,8 +44,9 @@ def usage():
 radio = None
 
 def send_to_radio(radio, data):
+    start = time.monotonic()
     radio.send(data, keep_listening=True)
-    logging.info("TX: {}".format(data))
+    logging.info("TX: {} ({})".format(data, time.monotonic() - start))
 
 def recv_from_radio(radio):
     packet = radio.receive()
