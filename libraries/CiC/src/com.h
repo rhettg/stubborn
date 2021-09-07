@@ -3,15 +3,32 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "evt.h"
+#include "tmr.h"
 
-// Command Ingest
-#define COM_TYPE_CI   1
-// Command Response
-#define COM_TYPE_CI_R 2
-// Telemetry Output
-#define COM_TYPE_TO   3
+#ifndef htons
+// From https://github.com/arduino-libraries/Ethernet/blob/7c32bbe146bbe762093e4f021c3b12d7bf8d1629/src/utility/w5100.h
+// The host order of the Arduino platform is little endian.
+// Sometimes it is desired to convert to big endian (or
+// network order)
+#define htons(x) ( ((( x )&0xFF)<<8) | ((( x )&0xFF00)>>8) )
+#define ntohs(x) htons(x)
+#endif
 
-#define COM_VERSION  1
+// COM has two types of communication patterns:
+//  * Request / Reply - Each request is expected to have a reply
+//  * Broadcast -  No reply expected
+#define COM_TYPE_REQ         1
+#define COM_TYPE_REPLY       2
+#define COM_TYPE_BROADCAST   3
+
+#define COM_VERSION  2
+
+// How long to wait after receiving a packet to allow replying.
+// This is necessary to deal with single-duplex radios that need to be switched
+// into receive mode.
+#define COM_SEND_DELAY 500
+
+#define COM_SEND_RETRY 1000
 
 /*
  * COM_Frame_t is the header frame for all COM messages. 
@@ -20,17 +37,23 @@
  */
 typedef struct {
     uint8_t header;
+    uint8_t channel;
+    uint16_t seq_num;
 } COM_Frame_t;
-
-typedef struct {
-    uint8_t type;
-    uint8_t *data;
-    size_t length;
-} COM_Msg_t;
 
 // Maximum length for the communications buffer. This is set based on how large
 // the physical communication system can send and receive.
 #define COM_MAX_LENGTH 60
+
+// Event to indicate we should consider sending out the payload
+#define COM_EVT_TYPE_DISPATCH 13
+
+typedef struct COM COM_t;
+
+typedef struct {
+    EVT_Event_t event;
+    COM_t *com;
+} COM_Dispatch_Event_t;
 
 /*
  * COM_t is the communications component.
@@ -38,39 +61,26 @@ typedef struct {
  * It requires a pointer to an EVT_t component to dispatch events based on received data.
  * The data buffer is used for sending new messages.
  */
-typedef struct {
+typedef struct COM {
     EVT_t   *evt;
-    uint8_t data_buf[COM_MAX_LENGTH];
+    TMR_t   *tmr;
+
+    uint16_t seq_num;
+
+    // recv_at marks when data was last received from our radio
+    // This is helpful because we need to be friendly with our peers by not sending packets before their radio
+    // is ready.
+    unsigned long last_recv_at;
+
+    COM_Dispatch_Event_t dispatch_event;
+
+    uint8_t msg_type;
     size_t data_len;
+    uint8_t data_buf[COM_MAX_LENGTH];
 } COM_t;
 
-typedef struct {
-    uint8_t cmd;
-    uint8_t cmd_num;
-} COM_CI_Frame_t;
-
-typedef struct {
-    EVT_Event_t event;
-    COM_CI_Frame_t *frame;
-    uint8_t *data;
-    size_t length;
-} COM_CI_Event_t;
-
-typedef struct {
-    uint8_t cmd_num;
-    uint8_t result;
-} COM_CI_R_Frame_t;
-
-typedef struct {
-    EVT_Event_t event;
-    COM_CI_R_Frame_t *frame;
-} COM_CI_R_Event_t;
-
-typedef struct {
-    EVT_Event_t event;
-    uint8_t *data;
-    size_t length;
-} COM_TO_Event_t;
+// Event to indicate data is available for sending via communications device.
+#define COM_EVT_TYPE_DATA 10
 
 typedef struct {
     EVT_Event_t event;
@@ -78,17 +88,36 @@ typedef struct {
     size_t length;
 } COM_Data_Event_t;
 
-// Event to indicate data is available for sending via communications device.
-#define COM_EVT_TYPE_DATA 10
+#define COM_EVT_TYPE_MSG   11
 
-// Event to indicate a message of type COM_TYPE_CI has been received.
-#define COM_EVT_TYPE_CI   11
+typedef struct {
+    EVT_Event_t event;
+    uint8_t msg_type;
+    uint8_t channel;
+    uint16_t seq_num;
+    size_t length;
+    uint8_t *data;
+} COM_Msg_Event_t;
 
-// Event to indicate a message of type COM_TYPE_CI_R has been received.
-#define COM_EVT_TYPE_CI_R 12 
+/*
+ * COM_init initializes the communications structure with the dependencies.
+ *
+ * @param com The COM_t component to initialize.
+ * @param evt The EVT_t subsystem to dispatch events to.
+ * @param tmr The TMR_t subsystem for setting timers.
+ * 
+ */
+void COM_init(COM_t *com, EVT_t *evt, TMR_t *tmr);
 
-// Event to indicate a message of type COM_TYPE_TO has been received.
-#define COM_EVT_TYPE_TO   13 
+/*
+ * COM_notify should be called to receive dispatch events.
+ *
+ *     EVT_subscribe(&evt, &COM_notify)
+ * 
+ * This is necessary to support retries and delayed sending.
+ *
+ */
+void COM_notify(EVT_Event_t *event);
 
 /**
  *  COM_recv ingests raw communication data into the com system.
@@ -103,68 +132,42 @@ typedef struct {
  * @param com The COM_t component to use.
  * @param data Pointer to the data buffer.
  * @param length Length of received data.
+ * @param now Current time (milliseconds)
 */
-int COM_recv(COM_t *com, uint8_t *data, size_t length);
+int COM_recv(COM_t *com, uint8_t *data, size_t length, unsigned long now);
 
 /**
- * COM_send_ci builds and emits a communications packet of type COM_TYPE_CI
- * (command ingest).
+ * COM_send builds and emits a communications packet
  * 
  * This method uses the internal buffer of the COM_t system which will store
  * the data until completion of the resulting COM_EVT_TYPE_DATA.
  * 
  * @param com The COM_t component to use.
- * @param cmd The type of CI command to encode.
- * @param cmd_num The sequence number for the CI command.
+ * @param msg_type The type of message to send (COM_TYPE_*)
+ * @param channel The channel identifier
  * @param data Pointer to data for the command.
  * @param length Length of data for the command.
+ * @param now Current time (milliseconds)
  * 
  * @return 0 on ok, -1 on error like insufficent buffer space.
- * 
- * \sa ci.h
  */
-int COM_send_ci(COM_t *com, uint8_t cmd, uint8_t cmd_num, uint8_t *data, size_t length);
+int COM_send(COM_t *com, uint8_t msg_type, uint8_t channel, uint8_t *data, size_t length, unsigned long now);
 
 /**
- * COM_send_ci_r builds and emits a communications packet of type COM_TYPE_CI_R
- * (command ingest response).
+ * COM_send_reply builds and emits a communications packet in reply to a request.
  * 
  * This method uses the internal buffer of the COM_t system which will store
  * the data until completion of the resulting COM_EVT_TYPE_DATA.
  * 
  * @param com The COM_t component to use.
- * @param cmd_num The sequence number for the CI command.
- * @param result Result of command operation.
- * 
- * @return 0 on ok, -1 on error like insufficent buffer space.
- * 
- * \sa ci.h
- */
-int COM_send_ci_r(COM_t *com, uint8_t cmd_num, uint8_t result);
-
-/**
- * COM_send_to builds and emits a communications packet of type COM_TYPE_TO
- * (telemetry output).
- * 
- * This method uses the internal buffer of the COM_t system which will store
- * the data until completion of the resulting COM_EVT_TYPE_DATA.
- * 
- * @param com The COM_t component to use.
+ * @param channel The channel identifier
+ * @param seq_num The message sequence number to reply to
  * @param data Pointer to data for the command.
  * @param length Length of data for the command.
+ * @param now Current time (milliseconds)
  * 
  * @return 0 on ok, -1 on error like insufficent buffer space.
- * 
- * \sa to.h
  */
-int COM_send_to(COM_t *com, uint8_t *data, size_t length);
-
-
-/**
- * COM_send_retry retries the last sent packet.
- *
- * This is maybe temporary until it's automated? Should it live within COM?
- */
-int COM_send_retry(COM_t *com);
+int COM_send_reply(COM_t *com, uint8_t channel, uint16_t seq_num, uint8_t *data, size_t length, unsigned long now);
 
 #endif

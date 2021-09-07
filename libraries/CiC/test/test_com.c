@@ -7,50 +7,115 @@
  
 int tests_run = 0;
 
-COM_Data_Event_t *ci_notify_d_event = NULL;
-COM_CI_Event_t *ci_notify_ci_event = NULL;
+COM_Data_Event_t *data_event = NULL;
+COM_Msg_Event_t *msg_event = NULL;
 
-static void test_ci_notify(EVT_Event_t *event)
+static void test_com_notify(EVT_Event_t *event)
 {
     switch (event->type) {
         case COM_EVT_TYPE_DATA:
-            ci_notify_d_event = (COM_Data_Event_t *)event;
+            data_event = (COM_Data_Event_t *)event;
             break;
-        case COM_EVT_TYPE_CI:
-            ci_notify_ci_event = (COM_CI_Event_t *)event;
+        case COM_EVT_TYPE_MSG:
+            msg_event = (COM_Msg_Event_t *)event;
             break;
         default:
             printf("unknown type %d\n", event->type);
     }
 }
 
-static char * test_ci() {
-    EVT_t evt;
+static char * test_req_reply() {
+    EVT_t evt = {0};
     EVT_init(&evt);
-    COM_t com;
+
+    TMR_t tmr = {0};
+
+    COM_t com = {0};
+    COM_init(&com, &evt, &tmr);
+
     char payload[] = "Hello World";
-    com.evt = &evt;
 
-    EVT_subscribe(&evt, &test_ci_notify);
+    EVT_subscribe(&evt, &test_com_notify);
 
-    int ret = COM_send_ci(&com, 2, 1, (uint8_t *)&payload, sizeof(payload));
-    mu_assert("bad send_ci", ret == 0);
-    mu_assert("notify not successful", ci_notify_d_event != NULL);
+    int ret = COM_send(&com, COM_TYPE_REQ, 1, (uint8_t *)&payload, sizeof(payload), 0);
+    mu_assert("bad send", ret == 0);
+    mu_assert("notify not successful", data_event != NULL);
 
-    mu_assert("length is 0", ci_notify_d_event->length > 0);
-    mu_assert("data is null", ci_notify_d_event->data != NULL);
+    mu_assert("length is 0", data_event->length > 0);
+    mu_assert("data is null", data_event->data != NULL);
 
-    ret = COM_recv(&com, ci_notify_d_event->data, ci_notify_d_event->length);
+    ret = COM_recv(&com, data_event->data, data_event->length, 0);
     mu_assert("bad recv", ret == 0);
 
-    mu_assert("recv not successful", ci_notify_ci_event != NULL);
+    mu_assert("recv not successful", msg_event != NULL);
+    mu_assert("wrong channel", 1 == msg_event->channel);
+
+    data_event = NULL;
+
+    // Send a reply
+    ret = COM_send_reply(&com, msg_event->channel, msg_event->seq_num, (uint8_t *)&payload, sizeof(payload), 0);
+    mu_assert("bad send_reply", ret == 0);
+    mu_assert("notify not successful", data_event != NULL);
+    mu_assert("length is 0", data_event->length > 0);
+    mu_assert("data is null", data_event->data != NULL);
+
+    msg_event = NULL;
+
+    ret = COM_recv(&com, data_event->data, data_event->length, 0);
+    mu_assert("bad recv", ret == 0);
+
+    mu_assert("recv not successful", msg_event != NULL);
+    mu_assert("wrong type", COM_TYPE_REPLY == msg_event->msg_type);
+    mu_assert("wrong channel", 1 == msg_event->channel);
+    mu_assert("still waiting", 0 == com.data_len);
+
+    return 0;
+}
+
+static char * test_delay_send() {
+    EVT_t evt = {0};
+    EVT_init(&evt);
+
+    TMR_t tmr = {0};
+
+    COM_t com = {0};
+    COM_init(&com, &evt, &tmr);
+
+    char payload[] = "Hello World";
+
+    EVT_subscribe(&evt, &test_com_notify);
+
+    int ret = COM_send(&com, COM_TYPE_REQ, 1, (uint8_t *)&payload, sizeof(payload), 1);
+    mu_assert("bad send", ret == 0);
+    mu_assert("notify not successful", data_event != NULL);
+
+    ret = COM_recv(&com, data_event->data, data_event->length, 2);
+    mu_assert("bad recv", ret == 0);
+
+    data_event = NULL;
+
+    // Send a reply, but it will be delayed
+    ret = COM_send_reply(&com, msg_event->channel, msg_event->seq_num, (uint8_t *)&payload, sizeof(payload), 2);
+    mu_assert("bad send_reply", ret == 0);
+    mu_assert("notify not delayed", data_event == NULL);
+
+    tmr.now_millis = 3;
+    COM_notify((EVT_Event_t *)&(com.dispatch_event));
+
+    mu_assert("notify too soon", data_event == NULL);
+
+    tmr.now_millis = COM_SEND_DELAY+3;
+    COM_notify((EVT_Event_t *)&(com.dispatch_event));
+
+    mu_assert("notify too soon", data_event != NULL);
 
     return 0;
 }
 
 
 static char * all_tests() {
-    mu_run_test(test_ci);
+    mu_run_test(test_req_reply);
+    mu_run_test(test_delay_send);
     return 0;
 }
 

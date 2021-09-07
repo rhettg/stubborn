@@ -79,7 +79,7 @@ void handleRFMReady(EVT_Event_t *e)
     Serial.println();
 */
 
-    COM_recv(&com, rf_buf, n);
+    COM_recv(&com, rf_buf, n, millis());
 
     if (0 != TO_set(&to, TO_PARAM_RFM_RSSI, (uint8_t)rf69.lastRssi())) {
       Error(ERR_TO_SET);
