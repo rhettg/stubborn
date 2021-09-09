@@ -69,6 +69,7 @@ async def handle_reader(reader):
             logging.error("client request too large ({})".format(len(req)))
             break
 
+        logging.info("Sending to radio")
         with concurrent.futures.ThreadPoolExecutor() as pool:
             await loop.run_in_executor(pool, functools.partial(send_to_radio, radio, req))
 
