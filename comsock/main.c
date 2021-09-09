@@ -37,13 +37,17 @@ void fatal(const char *msg)
 
 void debugEvent(EVT_Event_t *e)
 {
-    printf("Event: %d\n", e->type);
+    printf("[%ld] Event: %d\n", millis(), e->type);
 }
 
 unsigned long millis()
 {
-  time_t t = time(NULL);
-  return t;
+  struct timespec tp;
+  if (0 != clock_gettime(CLOCK_MONOTONIC_RAW, &tp)) {
+    perror("failed to get clock");
+  }
+
+  return tp.tv_sec * 1000 + lround(tp.tv_nsec/1.0e6);
 }
 
 int open_to_file()
@@ -112,6 +116,8 @@ int run_server()
     char buf[1024];
     size_t rlen;
     fd_set set;
+
+    struct timeval tv = {0, 100};   // sleep for ten minutes!
 
     printf("starting server\n");
 
