@@ -19,6 +19,7 @@
 #define RADIO_FILE "/var/stubborn/radio"
 
 EVT_t evt = {0};
+TMR_t tmr = {0};
 COM_t com = {0};
 CI_t  ci  = {0};
 
@@ -115,6 +116,8 @@ int run_server()
     printf("starting server\n");
 
     while (1) {
+        TMR_handle(&tmr, millis());
+
         FD_ZERO(&set);
 
         FD_SET(radio, &set);
@@ -125,7 +128,7 @@ int run_server()
             FD_SET(current_client, &set);
         }
 
-        int ret = select(FD_SETSIZE, &set, NULL, NULL, NULL);
+        int ret = select(FD_SETSIZE, &set, NULL, NULL, &tv);
         if (0 > ret) {
             perror("failed to select");
             continue;
@@ -251,7 +254,7 @@ void ci_ack_notify(EVT_Event_t *evt)
   char buf[80];
 
   if (CI_EVT_TYPE_ACK != evt->type) {
-    return;
+      return;
   }
 
   if (0 == current_client) {
