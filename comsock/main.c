@@ -14,6 +14,10 @@
 
 #include "command.h"
 
+#define TO_FILE    "/var/stubborn/to"
+#define SOCK_FILE  "/var/stubborn/comsock"
+#define RADIO_FILE "/var/stubborn/radio"
+
 EVT_t evt = {0};
 COM_t com = {0};
 CI_t  ci  = {0};
@@ -43,7 +47,7 @@ unsigned long millis()
 
 int open_to_file()
 {
-  to_file = fopen("/var/stubborn/to", "a");
+  to_file = fopen(TO_FILE, "a");
   if (NULL == to_file) {
     perror("failed to open /var/stubborn/to");
     return -1;
@@ -59,7 +63,7 @@ int open_client_sock()
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
 
-    if (0 != unlink("socket")) {
+    if (0 != unlink(SOCK_FILE)) {
         if (ENOENT != errno) {
             perror("failed to remove");
             return -1;
@@ -68,7 +72,7 @@ int open_client_sock()
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, "socket", sizeof(addr.sun_path)-1);
+    strncpy(addr.sun_path, SOCK_FILE, sizeof(addr.sun_path)-1);
 
     if (0 != bind(fd, (struct sockaddr*)&addr, sizeof(addr))) {
         perror("failed to open socket");
@@ -88,11 +92,11 @@ int open_radio_sock()
     struct sockaddr_un addr;
     int fd;
 
-    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    fd = socket(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK, 0);
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, "/var/stubborn/radio", sizeof(addr.sun_path)-1);
+    strncpy(addr.sun_path, RADIO_FILE, sizeof(addr.sun_path)-1);
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
       perror("connect error");
