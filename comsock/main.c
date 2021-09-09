@@ -154,9 +154,9 @@ int run_server()
               return 0;
             }
 
-            printf("read %d bytes\n", rlen);
+            printf("read %ld bytes\n", rlen);
 
-            int cret = COM_recv(&com, (uint8_t *)buf, rlen);
+            int cret = COM_recv(&com, (uint8_t *)buf, rlen, millis());
             if (cret != 0) {
               printf("error from COM: %d\n", cret);
               continue;
@@ -191,9 +191,9 @@ int run_server()
                     }
                 } else {
                     // It isn't OK yet actually.
-                    if (0 > send(current_client, "OK\n", 4, 0)) {
-                        perror("failed to report error");
-                    }
+                    //if (0 > send(current_client, "OK\n", 4, 0)) {
+                        //perror("failed to report error");
+                    //}
                 }
             } else {
                 printf("closing client\n");
@@ -225,17 +225,28 @@ void rfm_notify(EVT_Event_t *evt) {
   if (0 > n) {
     perror("failed to write");
   } else if (n < d_evt->length) {
-    printf("short write: %d %d\n", n , d_evt->length);
+    printf("short write: %d %ld\n", n , d_evt->length);
   }
 }
 
-void ci_r_notify(EVT_Event_t *evt) {
-  if (COM_EVT_TYPE_CI_R != evt->type) {
+void com_msg_notify(EVT_Event_t *evt) {
+  if (COM_EVT_TYPE_MSG != evt->type) {
     return;
   }
 
-  COM_CI_R_Event_t *r_evt = (COM_CI_R_Event_t *)evt;
-  if (0 != CI_ack(&ci, r_evt->frame->cmd_num, r_evt->frame->result, millis())) {
+  COM_Msg_Event_t *msg_evt = (COM_Msg_Event_t *)evt;
+
+  if (COM_CHANNEL_CI != msg_evt->channel) {
+    return;
+  }
+
+  printf("com_msg_notify: %d-%d len %ld\n", msg_evt->channel, msg_evt->seq_num, msg_evt->length);
+  int16_t result = -127;
+  if (2 == msg_evt->length) {
+    result = *(int16_t *)msg_evt->data;
+  }
+
+  if (0 != CI_ack(&ci, msg_evt->seq_num, result, millis())) {
     printf("ERROR CI_ack: %d", ERR_CI_ACK_FAIL);
     return;
   }
@@ -249,8 +260,12 @@ void ci_ready_notify(EVT_Event_t *evt)
 
   CI_Ready_Event_t *ready = (CI_Ready_Event_t *)evt;
 
-  if (0 != COM_send_ci(&com, ready->cmd->cmd, ready->cmd->cmd_num, ready->cmd->data, sizeof(ready->cmd->data))) {
-    printf("ERROR COM_send_ci: %d", ERR_COM_SEND);
+  uint8_t ci_msg[5];
+  ci_msg[0] = ready->cmd->cmd;
+  memcpy(&ci_msg[1], ready->cmd->data, 4);
+
+  if (0 != COM_send(&com, COM_TYPE_REQ, COM_CHANNEL_CI, (uint8_t *)ci_msg, 5, millis())) {
+    printf("ERROR COM_send: %d", ERR_COM_SEND);
     return;
   }
 }
@@ -276,16 +291,25 @@ void ci_ack_notify(EVT_Event_t *evt)
   } else {
     if (0 > sprintf(buf, "ERR %d\n", ack->cmd->result)) {
         perror("failed to send client response");
+        return;
+    }
+    if (0 > send(current_client, buf, strlen(buf), 0)) {
+        perror("failed to send client response");
+        return;
     }
   }
 }
 
 void to_notify(EVT_Event_t *evt) {
-  if (COM_EVT_TYPE_TO != evt->type) {
+  if (COM_EVT_TYPE_MSG != evt->type) {
     return;
   }
 
-  COM_TO_Event_t *to_evt = (COM_TO_Event_t *)evt;
+  COM_Msg_Event_t *to_evt = (COM_Msg_Event_t *)evt;
+
+  if (COM_CHANNEL_TO != to_evt->channel) {
+    return;
+  }
 
   TO_t to = {0};
   if (0 != TO_init(&to)) {
@@ -346,14 +370,16 @@ void to_notify(EVT_Event_t *evt) {
 int main(int argc, char const *argv[])
 {
     EVT_init(&evt);
-    com.evt = &evt;
+    tmr.evt = &evt;
+    COM_init(&com, &evt, &tmr);
     ci.evt = &evt;
 
     EVT_subscribe(&evt, &debugEvent);
 
+    EVT_subscribe(&evt, COM_notify);
     EVT_subscribe(&evt, &rfm_notify);
     EVT_subscribe(&evt, &to_notify);
-    EVT_subscribe(&evt, &ci_r_notify);
+    EVT_subscribe(&evt, &com_msg_notify);
     EVT_subscribe(&evt, &ci_ready_notify);
     EVT_subscribe(&evt, &ci_ack_notify);
 
