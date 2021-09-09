@@ -22,4 +22,7 @@
 #define TO_PARAM_MOTOR_B 41
 #define TO_PARAM_IMPACT  50
 
+#define COM_CHANNEL_TO 1
+#define COM_CHANNEL_CI 2
+
 #endif
