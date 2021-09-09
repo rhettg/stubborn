@@ -13,7 +13,7 @@ VPATH = src:build:test:CiC
 
 CICOBJECTS = $(patsubst CiC/%.c, $(OBJDIR)/%.o, $(wildcard CiC/*.c))
 OBJECTS = $(patsubst src/%.c, $(OBJDIR)/%.o, $(wildcard src/*.c))
-HEADERS = $(wildcard *.h)
+HEADERS = $(wildcard CiC/*.h) $(wildcard src/*.h)
 
 build/%.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
