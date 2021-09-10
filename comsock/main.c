@@ -14,9 +14,10 @@
 
 #include "command.h"
 
-#define TO_FILE    "/var/stubborn/to"
-#define SOCK_FILE  "/var/stubborn/comsock"
-#define RADIO_FILE "/var/stubborn/radio"
+#define TO_FILE      "/var/stubborn/to"
+#define TO_JSON_FILE "/var/stubborn/to.json"
+#define SOCK_FILE    "/var/stubborn/comsock"
+#define RADIO_FILE   "/var/stubborn/radio"
 
 EVT_t evt = {0};
 TMR_t tmr = {0};
@@ -28,6 +29,7 @@ int radio = 0;
 int server = 0;
 
 FILE *to_file = {0};
+FILE *to_json_file = {0};
 
 void fatal(const char *msg)
 {
@@ -55,6 +57,17 @@ int open_to_file()
   to_file = fopen(TO_FILE, "a");
   if (NULL == to_file) {
     perror("failed to open /var/stubborn/to");
+    return -1;
+  }
+
+  return 0;
+}
+
+int open_to_json_file()
+{
+  to_json_file = fopen(TO_JSON_FILE, "a");
+  if (NULL == to_json_file) {
+    perror("failed to open /var/stubborn/to.json");
     return -1;
   }
 
@@ -300,6 +313,107 @@ void ci_ack_notify(EVT_Event_t *evt)
   }
 }
 
+void write_to_file(TO_t *to)
+{
+  // Nothing to do if we don't have a place to write the data
+  if (NULL == to_file) {
+    return;
+  }
+
+  fprintf(to_file, "NOW=%lu\t", millis());
+
+  for (int i = 0; i < TO_MAX_PARAMS; i++) {
+    if (0 == to->objects[i].param) {
+      continue;
+    }
+
+    if (TO_PARAM_ERROR == to->objects[i].param)  {
+      fprintf(to_file, "ERR=%d", to->objects[i].data);
+    } else if (TO_PARAM_MILLIS == to->objects[i].param) {
+      fprintf(to_file, "UP=%lu", (unsigned long)to->objects[i].data / 1000);
+    } else if (TO_PARAM_LOOP == to->objects[i].param) {
+      fprintf(to_file, "LOOP=%lu", (unsigned long)to->objects[i].data);
+    } else if (TO_PARAM_COM_SEQ == to->objects[i].param) {
+      fprintf(to_file, "COM=%d", to->objects[i].data);
+    } else if (TO_PARAM_IMPACT == to->objects[i].param) {
+      if (to->objects[i].data > 0) {
+        fprintf(to_file, "IMPACT=1");
+      } else {
+        fprintf(to_file, "IMPACT=0");
+      }
+    } else if (TO_PARAM_MOTOR_A == to->objects[i].param) {
+      fprintf(to_file, "MOTORA=%d", to->objects[i].data);
+    } else if (TO_PARAM_MOTOR_B == to->objects[i].param) {
+      fprintf(to_file, "MOTORB=%d", to->objects[i].data);
+    } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
+      fprintf(to_file, "RSSI=%d", to->objects[i].data);
+    } else {
+      fprintf(to_file, "%d=0x%08x", to->objects[i].param, to->objects[i].data);
+    }
+    fprintf(to_file, "\t");
+  }
+
+  fprintf(to_file, "\n");
+  fflush(to_file);
+}
+
+void json_field(FILE *f, const char *key, char *value)
+{
+  fprintf(f, "\"%s\": \"%s\"", key, value);
+}
+
+void json_field_int(FILE *f, const char *key, long int value)
+{
+  fprintf(f, "\"%s\": %ld", key, value);
+}
+
+void write_to_json_file(TO_t *to)
+{
+  // Nothing to do if we don't have a place to write the data
+  if (NULL == to_json_file) {
+    return;
+  }
+
+  fprintf(to_json_file, "{");
+
+  json_field_int(to_json_file, "NOW", time(NULL));
+
+  for (int i = 0; i < TO_MAX_PARAMS; i++) {
+    if (0 == to->objects[i].param) {
+      continue;
+    }
+
+    fprintf(to_json_file, ", ");
+
+    if (TO_PARAM_ERROR == to->objects[i].param)  {
+      json_field_int(to_json_file, "ERR", to->objects[i].data);
+    } else if (TO_PARAM_MILLIS == to->objects[i].param) {
+      json_field_int(to_json_file, "UP", to->objects[i].data / 1000);
+    } else if (TO_PARAM_LOOP == to->objects[i].param) {
+      json_field_int(to_json_file, "LOOP", to->objects[i].data);
+    } else if (TO_PARAM_COM_SEQ == to->objects[i].param) {
+      json_field_int(to_json_file, "COM", to->objects[i].data);
+    } else if (TO_PARAM_IMPACT == to->objects[i].param) {
+      if (to->objects[i].data > 0) {
+        json_field_int(to_json_file, "IMPACT", 1);
+      } else {
+        json_field_int(to_json_file, "IMPACT", 0);
+      }
+    } else if (TO_PARAM_MOTOR_A == to->objects[i].param) {
+      json_field_int(to_json_file, "MOTORA", to->objects[i].data);
+    } else if (TO_PARAM_MOTOR_B == to->objects[i].param) {
+      json_field_int(to_json_file, "MOTORB", to->objects[i].data);
+    } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
+      json_field_int(to_json_file, "RSSI", to->objects[i].data);
+    } else {
+      json_field(to_json_file, sprintf("%d", to->objects[i].param), sprintf("0x%08x", to->objects[i].data));
+    }
+  }
+
+  fprintf(to_json_file, "}\n");
+  fflush(to_json_file);
+}
+
 void to_notify(EVT_Event_t *evt) {
   if (COM_EVT_TYPE_MSG != evt->type) {
     return;
@@ -323,49 +437,12 @@ void to_notify(EVT_Event_t *evt) {
     return;
   }
 
-  // Nothing to do if we don't have a place to write the data
-  if (NULL == to_file) {
-    return;
-  }
-
-  fprintf(to_file, "NOW=%lu\t", millis());
-
-  for (int i = 0; i < TO_MAX_PARAMS; i++) {
-    if (0 == to.objects[i].param) {
-      continue;
-    }
-
-    if (TO_PARAM_ERROR == to.objects[i].param)  {
-      fprintf(to_file, "ERR=%d", to.objects[i].data);
-    } else if (TO_PARAM_MILLIS == to.objects[i].param) {
-      fprintf(to_file, "UP=%lu", (unsigned long)to.objects[i].data / 1000);
-    } else if (TO_PARAM_LOOP == to.objects[i].param) {
-      fprintf(to_file, "LOOP=%lu", (unsigned long)to.objects[i].data);
-    } else if (TO_PARAM_COM_SEQ == to.objects[i].param) {
-      fprintf(to_file, "COM=%d", to.objects[i].data);
-    } else if (TO_PARAM_IMPACT == to.objects[i].param) {
-      if (to.objects[i].data > 0) {
-        fprintf(to_file, "IMPACT=1");
-      } else {
-        fprintf(to_file, "IMPACT=0");
-      }
-    } else if (TO_PARAM_MOTOR_A == to.objects[i].param) {
-      fprintf(to_file, "MOTORA=%d", to.objects[i].data);
-    } else if (TO_PARAM_MOTOR_B == to.objects[i].param) {
-      fprintf(to_file, "MOTORB=%d", to.objects[i].data);
-    } else if (TO_PARAM_RFM_RSSI == to.objects[i].param) {
-      fprintf(to_file, "RSSI=%d", to.objects[i].data);
-    } else {
-      fprintf(to_file, "%d=0x%08x", to.objects[i].param, to.objects[i].data);
-    }
-    fprintf(to_file, "\t");
-  }
-
-  fprintf(to_file, "\n");
-  fflush(to_file);
+  write_to_file(&to);
+  write_to_json_file(&to);
 
   return;
 }
+
 
 int main(int argc, char const *argv[])
 {
@@ -387,6 +464,10 @@ int main(int argc, char const *argv[])
       exit(1);
     }
 
+    if (0 != open_to_json_file()) {
+      exit(1);
+    }
+
     server = open_client_sock();
     if (0 > server) {
         exit(1);
@@ -404,6 +485,10 @@ int main(int argc, char const *argv[])
 
     if (NULL != to_file) {
       fclose(to_file);
+    }
+
+    if (NULL != to_json_file) {
+      fclose(to_json_file);
     }
 
     return 0;
