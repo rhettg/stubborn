@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/pkg/errors"
 	"github.com/rivo/tview"
 )
 
@@ -36,6 +38,34 @@ func fillFromFile(w io.Writer, name string) error {
 	return nil
 }
 
+func runCommand(cmd string) error {
+	conn, err := net.Dial("unix", "/var/stubborn/comsock")
+	if err != nil {
+		return errors.Wrap(err, "failed to dial")
+	}
+
+	defer conn.Close()
+
+	_, err = conn.Write([]byte(cmd))
+	if err != nil {
+		return errors.Wrap(err, "failed to write")
+	}
+
+	var b [1024]byte
+	n, err := conn.Read(b[:])
+	if err != nil {
+		return errors.Wrap(err, "failed to read")
+	}
+
+	if n > 0 {
+		log.Println(string(b[0:n]))
+	} else {
+		log.Println("empty response")
+	}
+
+	return nil
+}
+
 func newPrimitive(text string) tview.Primitive {
 	return tview.NewTextView().
 		SetTextAlign(tview.AlignCenter).
@@ -57,7 +87,7 @@ func main() {
 		SetTitle("LOGS")
 
 	log.Default().SetOutput(txt)
-	log.Println("hello world")
+	log.Println("Ground Station V2 Initialized")
 	/*
 		err := fillFromFile(txt, "main.go")
 		if err != nil {
@@ -93,8 +123,17 @@ func main() {
 		//SetAcceptanceFunc(tview.InputFieldInteger).
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
+		cmd := inputField.GetText()
+
 		if key == tcell.KeyEnter {
-			log.Printf("Running: %s (%v)\n", inputField.GetText(), key)
+			log.Printf("Running: %s\n", inputField.GetText())
+
+			go func() {
+				err := runCommand(cmd)
+				if err != nil {
+					log.Println("failed running command: ", err)
+				}
+			}()
 		}
 
 		inputField.SetText("")
