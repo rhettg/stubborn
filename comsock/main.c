@@ -2,9 +2,12 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include <stdarg.h>
+#include <math.h>
 
 #include "evt.h"
 #include "com.h"
@@ -28,18 +31,28 @@ int current_client = 0;
 int radio = 0;
 int server = 0;
 
+unsigned long start_time = 0;
+
 FILE *to_file = {0};
 FILE *to_json_file = {0};
 
+void log_format(const char* tag, const char* message, va_list args) {   time_t now;     time(&now);     char * date =ctime(&now);   date[strlen(date) - 1] = '\0';  printf("%s [%s] ", date, tag);  vprintf(message, args);     printf("\n"); }
+
+void log_error(const char* message, ...) {  va_list args;   va_start(args, message);    log_format("error", message, args);     va_end(args); }
+
+void log_info(const char* message, ...) {   va_list args;   va_start(args, message);    log_format("info", message, args);  va_end(args); }
+
+void log_debug(const char* message, ...) {  va_list args;   va_start(args, message);    log_format("debug", message, args);     va_end(args); }
+
 void fatal(const char *msg)
 {
-    fprintf(stderr, "%s\n", msg);
+    log_error(msg);
     exit(1);
 }
 
 void debugEvent(EVT_Event_t *e)
 {
-    printf("[%ld] Event: %d\n", millis(), e->type);
+    log_debug("event: %d", e->type);
 }
 
 unsigned long millis()
@@ -97,6 +110,12 @@ int open_client_sock()
         return -1;
     }
 
+    // Insecure? Maybe but this makes development easier.
+    if (0 != chmod(SOCK_FILE, 0777)) {
+      perror("failed to chmod sockfile");
+      return -1;
+    }
+
     if (0 != listen(fd, 1)) {
         perror("failed to listen");
         return -1;
@@ -132,7 +151,7 @@ int run_server()
 
     struct timeval tv = {0, 100};   // sleep for ten minutes!
 
-    printf("starting server\n");
+    log_debug("starting server");
 
     while (1) {
         TMR_handle(&tmr, millis());
@@ -154,62 +173,58 @@ int run_server()
         }
 
         if (0 != FD_ISSET(radio, &set)) {
+            log_debug("radio: reading");
             rlen = read(radio, buf, sizeof(buf));
             if (rlen < 0 && EAGAIN != errno) {
-                fprintf(stderr, "failed reading: %d\n", errno);
+                log_error("failed reading: %d", errno);
                 rlen = 0;
             }
 
             if (0 == rlen) {
-              fprintf(stderr, "radio closed, exiting\n");
+              log_error("radio: closed, exiting");
               close(radio);
               radio = 0;
               return 0;
             }
 
-            printf("read %ld bytes\n", rlen);
+            log_debug("radio: read %ld bytes", rlen);
 
             int cret = COM_recv(&com, (uint8_t *)buf, rlen, millis());
             if (cret != 0) {
-              printf("error from COM: %d\n", cret);
+              log_error("error from COM: %d", cret);
               continue;
             }
         }
 
         if (0 != FD_ISSET(server, &set)) {
-            printf("accepting to connection\n");
+            log_info("client: accepting");
             current_client = accept(server, 0, 0);
             if (current_client < 0) {
-                fprintf(stderr, "failed to accept: %d\n", errno);
+                log_error("failed to accept: %d", errno);
                 continue;
             }
         }
 
         if (0 != FD_ISSET(current_client, &set)) {
-            printf("reading request from client\n");
+            log_debug("client: reading");
             rlen = read(current_client, buf, sizeof(buf));
             if (rlen < 0 && EAGAIN != errno) {
-                fprintf(stderr, "failed reading: %d\n", errno);
+                log_error("failed reading: %d", errno);
                 rlen = 0;
             }
 
             if (0 < rlen) {
                 buf[rlen] = 0;
-                printf("RX: %s\n", buf);
+                log_info("client: RX '%s'", buf);
                 int rp = parse_ci_command(&ci, buf);
                 if (0 != rp) {
-                    fprintf(stderr, "failed parsing: %d\n", rp);
+                    log_error("client: failed parsing command: %d", rp);
                     if (0 > send(current_client, "ERR\n", 4, 0)) {
                         perror("failed to report error");
                     }
-                } else {
-                    // It isn't OK yet actually.
-                    //if (0 > send(current_client, "OK\n", 4, 0)) {
-                        //perror("failed to report error");
-                    //}
                 }
             } else {
-                printf("closing client\n");
+                log_info("client: closing");
                 close(current_client);
                 current_client = 0;
             }
@@ -225,21 +240,23 @@ void rfm_notify(EVT_Event_t *evt) {
   }
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
+  log_debug("radio: TX: (%lu len)", d_evt->length);
 #ifdef DEBUG
-  printf("sending %lu bytes: ", d_evt->length);
+  printf("\t");
   for(int i = 0; i < d_evt->length; i++) {
     printf("0x%x ", d_evt->data[i]);
   }
   printf("\n");
 #endif
-  printf("TX: (%lu len)\n", d_evt->length);
 
+  log_debug("radio: writing");
   int n = write(radio, d_evt->data, d_evt->length);
   if (0 > n) {
     perror("failed to write");
   } else if (n < d_evt->length) {
-    printf("short write: %d %ld\n", n , d_evt->length);
+    log_error("radio: short write: %d %ld\n", n , d_evt->length);
   }
+  log_debug("radio: wrote %ul bytes", n);
 }
 
 void com_msg_notify(EVT_Event_t *evt) {
@@ -253,14 +270,14 @@ void com_msg_notify(EVT_Event_t *evt) {
     return;
   }
 
-  printf("com_msg_notify: %d-%d len %ld\n", msg_evt->channel, msg_evt->seq_num, msg_evt->length);
+  log_debug("com_msg_notify: %d-%d len %ld", msg_evt->channel, msg_evt->seq_num, msg_evt->length);
   int16_t result = -127;
   if (2 == msg_evt->length) {
     result = *(int16_t *)msg_evt->data;
   }
 
   if (0 != CI_ack(&ci, msg_evt->seq_num, result, millis())) {
-    printf("ERROR CI_ack: %d", ERR_CI_ACK_FAIL);
+    log_error("ERROR CI_ack: %d", ERR_CI_ACK_FAIL);
     return;
   }
 }
@@ -278,7 +295,7 @@ void ci_ready_notify(EVT_Event_t *evt)
   memcpy(&ci_msg[1], ready->cmd->data, 4);
 
   if (0 != COM_send(&com, COM_TYPE_REQ, COM_CHANNEL_CI, (uint8_t *)ci_msg, 5, millis())) {
-    printf("ERROR COM_send: %d", ERR_COM_SEND);
+    log_error("failed to COM_send: %d", ERR_COM_SEND);
     return;
   }
 }
@@ -374,6 +391,9 @@ void write_to_json_file(TO_t *to)
     return;
   }
 
+  char param_buf[255];
+  char value_buf[255];
+
   fprintf(to_json_file, "{");
 
   json_field_int(to_json_file, "NOW", time(NULL));
@@ -406,7 +426,9 @@ void write_to_json_file(TO_t *to)
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       json_field_int(to_json_file, "RSSI", to->objects[i].data);
     } else {
-      json_field(to_json_file, sprintf("%d", to->objects[i].param), sprintf("0x%08x", to->objects[i].data));
+      sprintf(param_buf, "%d", to->objects[i].param);
+      sprintf(value_buf, "0x%08x", to->objects[i].data);
+      json_field(to_json_file, param_buf, value_buf);
     }
   }
 
@@ -446,6 +468,8 @@ void to_notify(EVT_Event_t *evt) {
 
 int main(int argc, char const *argv[])
 {
+    start_time = millis();
+
     EVT_init(&evt);
     tmr.evt = &evt;
     COM_init(&com, &evt, &tmr);
