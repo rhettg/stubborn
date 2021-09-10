@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/hpcloud/tail"
 	"github.com/pkg/errors"
 	"github.com/rivo/tview"
 )
@@ -22,20 +23,6 @@ func (mb *myBox) boxCapture(event *tcell.EventKey) *tcell.EventKey {
 	mb.tv.ScrollToEnd()
 
 	return event
-}
-
-func fillFromFile(w io.Writer, name string) error {
-	f, err := os.Open("main.go")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(w, f)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func runCommand(cmd string) error {
@@ -58,7 +45,7 @@ func runCommand(cmd string) error {
 	}
 
 	if n > 0 {
-		log.Println(string(b[0:n]))
+		log.Println(strings.TrimSpace(string(b[0:n])))
 	} else {
 		log.Println("empty response")
 	}
@@ -77,6 +64,65 @@ type metricData struct {
 	Value string
 }
 
+type telemetryData struct {
+	NOW     int
+	UP      int
+	LOOP    int
+	COM     int
+	RSSI    int
+	ERR     int
+	MOTOR_A int
+	MOTOR_B int
+}
+
+func updateMetrics(a *tview.Application, t *tview.Table, m []metricData) {
+	a.QueueUpdateDraw(func() {
+		for n, md := range m {
+			t.
+				SetCell(n, 0, tview.NewTableCell(md.Label).SetTextColor(tcell.ColorBisque)).
+				SetCell(n, 1, tview.NewTableCell(md.Value).
+					SetTextColor(tcell.ColorAquaMarine).
+					SetAlign(tview.AlignRight))
+		}
+	})
+}
+
+func newMetrics(td telemetryData) []metricData {
+	metricData := []metricData{
+		{Label: "Up Time", Value: fmt.Sprintf("%v", time.Duration(td.UP)*time.Second)},
+		{Label: "Error", Value: fmt.Sprintf("%d", td.ERR)},
+		{Label: "RSSI", Value: fmt.Sprintf("%d", td.RSSI)},
+		{Label: "COM Seq", Value: fmt.Sprintf("%d", td.COM)},
+		{Label: "MOTOR", Value: fmt.Sprintf("%d / %d", td.MOTOR_A, td.MOTOR_B)},
+		{Label: "Last Loop", Value: fmt.Sprintf("%dms", td.LOOP)},
+	}
+
+	return metricData
+}
+
+func runMetrics(a *tview.Application, tbl *tview.Table) {
+	t, err := tail.TailFile("/var/stubborn/to.json", tail.Config{Location: &tail.SeekInfo{Offset: 0, Whence: 2}, Follow: true})
+	if err != nil {
+		log.Println("failed opening to.json:", err)
+		return
+	}
+
+	td := telemetryData{}
+
+	for line := range t.Lines {
+		log.Println(line.Text)
+
+		err = json.Unmarshal([]byte(line.Text), &td)
+		if err != nil {
+			log.Println("error parsing telemetry:", err)
+			continue
+		}
+
+		m := newMetrics(td)
+		updateMetrics(a, tbl, m)
+	}
+}
+
 func main() {
 	app := tview.NewApplication()
 	//box := tview.NewBox().SetBorder(true).SetTitle("Hello, world!")
@@ -88,6 +134,7 @@ func main() {
 
 	log.Default().SetOutput(txt)
 	log.Println("Ground Station V2 Initialized")
+
 	/*
 		err := fillFromFile(txt, "main.go")
 		if err != nil {
@@ -95,27 +142,17 @@ func main() {
 		}
 	*/
 
+	go func() {
+	}()
+
 	mb := myBox{tv: txt}
 	txt.SetInputCapture(mb.boxCapture)
 
 	table := tview.NewTable().SetBorders(false)
 	table.Box.SetBorder(true)
 	table.Box.SetTitle("TELEMETRY")
-	metricData := []metricData{
-		{Label: "Mis.T", Value: fmt.Sprintf("%v", 3875*time.Second)},
-		{Label: "RSSI", Value: "10db"},
-		{Label: "COM SEQ", Value: "13"},
-		{Label: "MOTOR", Value: "128 / 128"},
-		{Label: "BATT A", Value: "4.89V"},
-	}
 
-	for n, md := range metricData {
-		table.
-			SetCell(n, 0, tview.NewTableCell(md.Label).SetTextColor(tcell.ColorBisque)).
-			SetCell(n, 1, tview.NewTableCell(md.Value).
-				SetTextColor(tcell.ColorAquaMarine).
-				SetAlign(tview.AlignRight))
-	}
+	go runMetrics(app, table)
 
 	inputField := tview.NewInputField().
 		SetLabel("Command: ").
