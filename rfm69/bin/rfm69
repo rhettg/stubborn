@@ -12,6 +12,7 @@ import asyncio
 import functools
 import concurrent.futures
 import logging
+import threading
 
 import busio
 import digitalio
@@ -25,6 +26,8 @@ i2c = busio.I2C(board.SCL, board.SDA)
 CS = digitalio.DigitalInOut(board.D5)
 RESET = digitalio.DigitalInOut(board.D6)
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+
+rfm_mutex = threading.Lock()
 
 def initialize_radio():
     try:
@@ -44,12 +47,23 @@ def usage():
 radio = None
 
 def send_to_radio(radio, data):
-    start = time.monotonic()
-    radio.send(data, keep_listening=True)
+    rfm_mutex.acquire()
+
+    try:
+        start = time.monotonic()
+        radio.send(data, keep_listening=True)
+    finally:
+        rfm_mutex.release()
+
     logging.info("TX: {} ({})".format(data, time.monotonic() - start))
 
 def recv_from_radio(radio):
-    packet = radio.receive()
+    rfm_mutex.acquire()
+    try:
+        packet = radio.receive()
+    finally:
+        rfm_mutex.release()
+
     if packet is not None:
         logging.info("RX: {}".format(packet))
     return packet
@@ -82,7 +96,13 @@ async def handle_writer(writer):
     radio.listen()
 
     while True:
-        if radio.payload_ready():
+        rfm_mutex.acquire()
+        try:
+            ready = radio.payload_ready()
+        finally:
+            rfm_mutex.release()
+
+        if ready:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 result = await loop.run_in_executor(pool, functools.partial(recv_from_radio, radio))
 
