@@ -32,10 +32,6 @@ EVT_Event_t ciStopEvent = {EVT_TYPE_CI_STOP};
 #define TBL_VAL_MOTOR_BIAS_A  2
 #define TBL_VAL_MOTOR_BIAS_B  3
 
-// Channels for communications layer
-#define COM_CHANNEL_TO 1
-#define COM_CHANNEL_CI 2
-
 TO_t to   = {0};
 EVT_t evt = {0};
 TMR_t tmr = {0};
