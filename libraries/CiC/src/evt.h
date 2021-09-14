@@ -5,7 +5,7 @@
 // EVT_MAX_HANDLERS defines the size of the handlers array used for registering
 // event handlers. If more handlers are needed, increase this number.
 #ifndef EVT_MAX_HANDLERS
-#define EVT_MAX_HANDLERS 8 
+#define EVT_MAX_HANDLERS 10
 #endif
 
 typedef struct {
