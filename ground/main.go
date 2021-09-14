@@ -65,14 +65,14 @@ type metricData struct {
 }
 
 type telemetryData struct {
-	NOW     int
-	UP      int
-	LOOP    int
-	COM     int
-	RSSI    int
-	ERR     int
-	MOTOR_A int
-	MOTOR_B int
+	NOW    int
+	UP     int
+	LOOP   int
+	COM    int
+	RSSI   int
+	ERR    int
+	MOTORA int
+	MOTORB int
 }
 
 func updateMetrics(a *tview.Application, t *tview.Table, m []metricData) {
@@ -93,7 +93,7 @@ func newMetrics(td telemetryData) []metricData {
 		{Label: "Error", Value: fmt.Sprintf("%d", td.ERR)},
 		{Label: "RSSI", Value: fmt.Sprintf("%d", td.RSSI)},
 		{Label: "COM Seq", Value: fmt.Sprintf("%d", td.COM)},
-		{Label: "MOTOR", Value: fmt.Sprintf("%d / %d", td.MOTOR_A, td.MOTOR_B)},
+		{Label: "MOTOR", Value: fmt.Sprintf("%d / %d", td.MOTORA, td.MOTORB)},
 		{Label: "Last Loop", Value: fmt.Sprintf("%dms", td.LOOP)},
 	}
 
