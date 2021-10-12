@@ -110,7 +110,7 @@ func runMetrics(a *tview.Application, tbl *tview.Table) {
 	td := telemetryData{}
 
 	for line := range t.Lines {
-		log.Println(line.Text)
+		//log.Println(line.Text)
 
 		err = json.Unmarshal([]byte(line.Text), &td)
 		if err != nil {
