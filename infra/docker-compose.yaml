@@ -1,0 +1,13 @@
+version: "3"
+services:
+  promtail:
+    image: grafana/promtail:1.5.0
+    ports:
+      - "9080:9080"
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /var/log:/var/log
+      - /var/stubborn:/var/stubborn
+      - /home/rhettg/Projects/stubborn/infra/etc/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /home/rhettg/Projects/stubborn/infra/data/promtail:/data/promtail
+    command: -config.file=/etc/promtail/promtail-config.yml

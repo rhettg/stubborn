@@ -36,6 +36,7 @@ int TMR_handle(TMR_t *tmr, unsigned long now)
     }
 
     tmr->wake_millis = 0;
+    tmr->now_millis = now;
 
     for (int i = 0; i < TMR_MAX_TIMERS; i++) {
         if (tmr->event_notify[i] == 0) {
@@ -55,4 +56,9 @@ int TMR_handle(TMR_t *tmr, unsigned long now)
     }
 
     return 0;
+}
+
+unsigned long TMR_now(TMR_t *tmr)
+{
+    return tmr->now_millis;
 }

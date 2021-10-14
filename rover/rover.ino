@@ -1,5 +1,6 @@
 
 #include <SPI.h>
+#include <Ethernet.h>
 
 extern "C" {
 #include "stubborn.h"
@@ -45,9 +46,9 @@ void setup() {
   Serial.println("Booting..");
 
   EVT_init(&evt);
-  com.evt = &evt;
   ci.evt = &evt;
   tmr.evt = &evt;
+  COM_init(&com, &evt, &tmr);
 
   // EVT_subscribe(&evt, &debugEvent);
 
@@ -65,6 +66,7 @@ void setup() {
   rfmInit();
   motorInit();
 
+  EVT_subscribe(&evt, &COM_notify);
   EVT_subscribe(&evt, &com_ci_notify);
   EVT_subscribe(&evt, &handleSyncTO);
   EVT_subscribe(&evt, &handleCIStop);
@@ -136,18 +138,36 @@ void loop() {
 
 void com_ci_notify(EVT_Event_t *evt)
 {
-  if (COM_EVT_TYPE_CI != evt->type) {
+  if (COM_EVT_TYPE_MSG != evt->type) {
     return;
   }
 
-  COM_CI_Event_t *ci_evt = (COM_CI_Event_t *)evt;
+  COM_Msg_Event_t *msg_evt = (COM_Msg_Event_t *)evt;
 
-  int r = CI_ingest(&ci, ci_evt->frame->cmd, ci_evt->data);
-  if (0 != COM_send_ci_r(&com, ci_evt->frame->cmd_num, r)) {
+  if (COM_CHANNEL_CI != msg_evt->channel) {
+    return;
+  }
+
+  if (COM_TYPE_REQ != msg_evt->msg_type) {
+    return;
+  }
+
+  uint8_t cmd = 0;
+  uint8_t data[CI_MAX_DATA] = {0};
+
+  // Make sure we have enough bytes
+  if (5 <= msg_evt->length) {
+    cmd = msg_evt->data[0];
+    memcpy(data, &msg_evt->data[1], 4);
+  }
+
+  int r = CI_ingest(&ci, cmd, data);
+
+  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, (uint8_t *)&r, sizeof(r), millis())) {
     Error(ERR_COM_SEND);
   }
 
-  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, ci_evt->frame->cmd_num)) {
+  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, msg_evt->seq_num)) {
     Error(ERR_TO_SET);
   }
 }
@@ -179,7 +199,7 @@ void syncTO()
     uint8_t to_buf[MAX_TO_SIZE];
     size_t to_size = TO_encode(&to, to_buf, sizeof(to_buf));
     if (0 < to_size) {
-      if (0 != COM_send_to(&com, to_buf, to_size)) {
+      if (0 != COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_TO, to_buf, to_size, millis())) {
         Error(ERR_COM_SEND);
       }
     }

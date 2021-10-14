@@ -1,0 +1,16 @@
+[Unit]
+Description=Communications socket interface
+After=syslog.target network-online.target radio.service
+
+[Service]
+Type=simple
+User=root
+#EnvironmentFile=/etc/default/homebridge #Environment Variable for the service. This is a separate file creating below
+
+ExecStart=/home/rhettg/Projects/stubborn/comsock/comsock
+Restart=always
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

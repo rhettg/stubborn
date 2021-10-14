@@ -1,0 +1,17 @@
+[Unit]
+Description=Radio interface for rfm69 device
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+User=root
+#EnvironmentFile=/etc/default/homebridge #Environment Variable for the service. This is a separate file creating below
+
+# See comments below for more information
+ExecStart=/home/rhettg/Projects/stubborn/rfm69/bin/rfm69 /var/stubborn/radio
+Restart=on-failure
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

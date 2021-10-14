@@ -17,6 +17,7 @@
 typedef struct {
    EVT_t   *evt;
 
+   unsigned long now_millis;                    // defines when now is for use by tmr dispatched event handlers;
    unsigned long wake_millis;                   // defines when the next event to be delivereed is scheduled.
    EVT_Event_t * events[TMR_MAX_TIMERS];        // array of events to delivery
    unsigned long event_notify[TMR_MAX_TIMERS];  // array of millisecond notify_at values for each event
@@ -39,5 +40,13 @@ int TMR_enqueue(TMR_t *tmr, EVT_Event_t *e, unsigned long notify_at);
  * @param now Current time (milliseconds)
  */
 int TMR_handle(TMR_t *tmr, unsigned long now);
+
+/**
+ * TMR_now returns the current time as recorded when TMR_handle was called to dispatch an event.
+ * This is useful for handlers who need to enqueue another event or otherwise deal with the current time.
+ *
+ * @param tmr TMR_t instance
+ */
+unsigned long TMR_now(TMR_t *tmr);
 
 #endif
