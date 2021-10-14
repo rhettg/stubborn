@@ -26,9 +26,9 @@
 // How long to wait after receiving a packet to allow replying.
 // This is necessary to deal with single-duplex radios that need to be switched
 // into receive mode.
-#define COM_SEND_DELAY 1000
+#define COM_SEND_DELAY 500
 
-#define COM_SEND_RETRY 5000
+#define COM_SEND_RETRY 2500
 
 /*
  * COM_Frame_t is the header frame for all COM messages. 
