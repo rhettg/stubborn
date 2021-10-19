@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # XXX: ran clean to fix a bug, but maybe this is always necessary.
-if ! arduino-cli compile -b arduino:avr:uno --libraries ../libraries -u -p /dev/tty.usbmodem1101 rover.ino; then
+if ! arduino-cli compile -b arduino:avr:uno --libraries ../libraries -u -p /dev/tty.usbmodem11101 rover.ino; then
   echo >&2 "Upload failure"
   exit 1
 fi

@@ -117,6 +117,9 @@ int parse_ci_command(CI_t *ci, char *s) {
       v2 = parse_uint8(tok_start[2], tok_len[2]);
       cmd_data[3] = v2;
     }
+  } else if (is_cmd(tok_start[0], tok_len[0], "SNAP")) {
+      cmd_data[0] = 0;
+      cmd = CI_CMD_EXT_SNAP;
   }
 
   if (0 == cmd) {

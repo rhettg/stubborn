@@ -9,7 +9,7 @@
 
 #ifndef CI_MAX_CMDS
 // TODO: How do I make these constants mission specific?
-#define CI_MAX_CMDS 10
+#define CI_MAX_CMDS 12
 #endif
 
 #define CI_R_OK            0

@@ -141,3 +141,8 @@ int handleCmdSet(uint8_t data[CI_MAX_DATA])
 
     return CI_R_OK;
 }
+
+int handleCmdSnap(uint8_t data[CI_MAX_DATA])
+{
+    return CI_R_OK;
+}

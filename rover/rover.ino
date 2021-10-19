@@ -50,7 +50,7 @@ void setup() {
   tmr.evt = &evt;
   COM_init(&com, &evt, &tmr);
 
-  // EVT_subscribe(&evt, &debugEvent);
+  EVT_subscribe(&evt, &debugEvent);
 
   if (0 != TO_init(&to)) {
     Serial.println("FAIL: TO init");
@@ -65,7 +65,7 @@ void setup() {
 
   rfmInit();
   motorInit();
-  cameraInit();
+  camInit();
 
   EVT_subscribe(&evt, &COM_notify);
   EVT_subscribe(&evt, &com_ci_notify);
@@ -73,6 +73,7 @@ void setup() {
   EVT_subscribe(&evt, &handleCIStop);
   EVT_subscribe(&evt, &handleImpactSensor);
   EVT_subscribe(&evt, &handleMotorSpeed);
+  EVT_subscribe(&evt, &handleCamPollSnap);
 
   if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
     Error(ERR_CI_REGISTER);
@@ -104,6 +105,9 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_EXT_SET, &handleCmdSet)) {
     Error(ERR_CI_REGISTER);
   }
+  if (0 != CI_register(&ci, CI_CMD_EXT_SNAP, &handleCmdSnap)) {
+    Error(ERR_CI_REGISTER);
+  }
 
   // Send initial TO broadcast and start sync schedule.
   handleSyncTO((EVT_Event_t *)&syncTOEvent);
@@ -119,7 +123,7 @@ void loop() {
 
   checkRFM();
 
-  checkImpactSensor();
+  //checkImpactSensor();
 
   if (0 != TO_set(&to, TO_PARAM_MILLIS, millis())) {
     Error(ERR_TO_SET);

@@ -364,6 +364,8 @@ void write_to_file(TO_t *to)
       fprintf(to_file, "MOTORB=%d", to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       fprintf(to_file, "RSSI=%d", to->objects[i].data);
+    } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
+      fprintf(to_file, "CAM_LEN=%lu", (unsigned long)to->objects[i].data);
     } else {
       fprintf(to_file, "%d=0x%08x", to->objects[i].param, to->objects[i].data);
     }
@@ -425,6 +427,8 @@ void write_to_json_file(TO_t *to)
       json_field_int(to_json_file, "MOTORB", to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       json_field_int(to_json_file, "RSSI", to->objects[i].data);
+    } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
+      json_field_int(to_json_file, "CAM_LEN", to->objects[i].data);
     } else {
       sprintf(param_buf, "%d", to->objects[i].param);
       sprintf(value_buf, "0x%08x", to->objects[i].data);
