@@ -110,6 +110,10 @@ int COM_send(COM_t *com, uint8_t msg_type, uint8_t channel, uint8_t *data, size_
         return -1;
     }
 
+    if (0 != com->data_len) {
+        return -2;
+    }
+
     // Reset our current send packet
     com->seq_num++;
     com->data_len = 0;
@@ -139,6 +143,10 @@ int COM_send(COM_t *com, uint8_t msg_type, uint8_t channel, uint8_t *data, size_
 int COM_send_reply(COM_t *com, uint8_t channel, uint16_t seq_num, uint8_t *data, size_t length, unsigned long now)
 {
     if (length + sizeof(COM_Frame_t) > sizeof(com->data_buf)) {
+        return -1;
+    }
+
+    if (0 != com->data_len) {
         return -2;
     }
 

@@ -204,7 +204,9 @@ void syncTO()
     uint8_t to_buf[MAX_TO_SIZE];
     size_t to_size = TO_encode(&to, to_buf, sizeof(to_buf));
     if (0 < to_size) {
-      if (0 != COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_TO, to_buf, to_size, millis())) {
+      int ret = COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_TO, to_buf, to_size, millis());
+      // No sense complaining about send buffer being full, just wait for the next round.
+      if (0 > ret && -2 != ret) {
         Error(ERR_COM_SEND);
       }
     }
