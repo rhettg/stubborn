@@ -144,5 +144,6 @@ int handleCmdSet(uint8_t data[CI_MAX_DATA])
 
 int handleCmdSnap(uint8_t data[CI_MAX_DATA])
 {
+    camSnap();
     return CI_R_OK;
 }

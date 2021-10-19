@@ -41,7 +41,7 @@ void camInit()
   myCAM.OV2640_set_JPEG_size(OV2640_320x240);
 }
 
-void cameraSnap() 
+void camSnap() 
 {
   camSnapLength = 0;
 
