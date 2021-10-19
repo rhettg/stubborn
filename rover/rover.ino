@@ -65,6 +65,7 @@ void setup() {
 
   rfmInit();
   motorInit();
+  cameraInit();
 
   EVT_subscribe(&evt, &COM_notify);
   EVT_subscribe(&evt, &com_ci_notify);
