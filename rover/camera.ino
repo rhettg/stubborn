@@ -69,13 +69,7 @@ void handleCamPollSnap(EVT_Event_t *evt)
     return;
   }
 
-  Serial.println("Capture done");
-
   camSnapLength = myCAM.read_fifo_length();
-
-  Serial.print("Storing ");
-  Serial.print(camSnapLength, DEC);
-  Serial.println(" byte image.");
 
   if (0 != TO_set(&to, TO_PARAM_CAM_LEN, camSnapLength)) {
     Error(ERR_TO_SET);
