@@ -469,6 +469,30 @@ void to_notify(EVT_Event_t *evt) {
   return;
 }
 
+void cam_data_notify(EVT_Event_t *evt) {
+  if (COM_EVT_TYPE_MSG != evt->type) {
+    return;
+  }
+
+  COM_Msg_Event_t *msg_evt = (COM_Msg_Event_t *)evt;
+
+  if (COM_CHANNEL_CAM_DATA != msg_evt->channel) {
+    return;
+  }
+
+  FILE *cam_file = fopen("/var/stubborn/cam.jpg", "a");
+  if (NULL == cam_file) {
+    perror("failed to open /var/stubborn/cam.jpb");
+    return;
+  }
+
+  size_t wb = fwrite(msg_evt->data, msg_evt->length, 1, cam_file);
+
+  fclose(cam_file);
+
+  return;
+}
+
 
 int main(int argc, char const *argv[])
 {
