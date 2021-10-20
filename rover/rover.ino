@@ -50,7 +50,9 @@ void setup() {
   tmr.evt = &evt;
   COM_init(&com, &evt, &tmr);
 
+#ifdef DEBUG
   EVT_subscribe(&evt, &debugEvent);
+#endif
 
   if (0 != TO_init(&to)) {
     Serial.println("FAIL: TO init");
@@ -124,6 +126,8 @@ void loop() {
   checkRFM();
 
   //checkImpactSensor();
+
+  checkCamData();
 
   if (0 != TO_set(&to, TO_PARAM_MILLIS, millis())) {
     Error(ERR_TO_SET);

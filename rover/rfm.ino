@@ -71,12 +71,14 @@ void handleRFMReady(EVT_Event_t *e)
       Error(ERR_RFM_RECV);
     }
 
+#ifdef DEBUG
     Serial.print("["); Serial.print(millis()); Serial.print("] ");
     Serial.print("Received "); Serial.print(n); Serial.print(" bytes: ");
     for (int i = 0; i < n; i++) {
       Serial.print(rf_buf[i], HEX); Serial.print(' ');
     }
     Serial.println();
+#endif
 
     COM_recv(&com, rf_buf, n, millis());
 
@@ -92,6 +94,7 @@ void rfm_notify(EVT_Event_t *evt) {
 
   COM_Data_Event_t *d_evt = (COM_Data_Event_t *)evt;
 
+#ifdef DEBUG
   Serial.print("["); Serial.print(millis()); Serial.print("] ");
   Serial.print("Sending ");
   Serial.print(d_evt->length);
@@ -100,6 +103,7 @@ void rfm_notify(EVT_Event_t *evt) {
     Serial.print(d_evt->data[i], HEX); Serial.print(' ');
   }
   Serial.println();
+#endif
 
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();

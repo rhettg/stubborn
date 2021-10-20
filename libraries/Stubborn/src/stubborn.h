@@ -4,6 +4,7 @@
 // Channels for communications layer
 #define COM_CHANNEL_TO 1
 #define COM_CHANNEL_CI 2
+#define COM_CHANNEL_CAM_DATA 3
 
 // Mission specific values. These can be shared between the Rover and the Ground State
 #define EVT_MAX_HANDLERS 12
@@ -27,8 +28,5 @@
 #define TO_PARAM_MOTOR_B 41
 #define TO_PARAM_IMPACT  50
 #define TO_PARAM_CAM_LEN 60
-
-#define COM_CHANNEL_TO 1
-#define COM_CHANNEL_CI 2
 
 #endif
