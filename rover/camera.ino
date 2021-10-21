@@ -93,6 +93,7 @@ void checkCamData()
       // We only complain about non-buffer errors.
       Error(ERR_COM_SEND);
     }
+    return;
   }
 
   if (0 < camSnapLength) {
