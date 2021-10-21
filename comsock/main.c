@@ -22,6 +22,7 @@
 #define TO_JSON_FILE "/var/stubborn/to.json"
 #define SOCK_FILE    "/var/stubborn/comsock"
 #define RADIO_FILE   "/var/stubborn/radio"
+#define CAM_DATA_FILE "/var/stubborn/cam.jpg"
 
 EVT_t evt = {0};
 TMR_t tmr = {0};
@@ -36,6 +37,7 @@ unsigned long start_time = 0;
 
 FILE *to_file = {0};
 FILE *to_json_file = {0};
+int cam_file = 0;
 
 void log_format(const char* tag, const char* message, va_list args) {   time_t now;     time(&now);     char * date =ctime(&now);   date[strlen(date) - 1] = '\0';  printf("%s [%s] ", date, tag);  vprintf(message, args);     printf("\n"); }
 
@@ -471,6 +473,7 @@ void to_notify(EVT_Event_t *evt) {
 }
 
 void cam_data_notify(EVT_Event_t *evt) {
+  static int count;
   if (COM_EVT_TYPE_MSG != evt->type) {
     return;
   }
@@ -481,16 +484,33 @@ void cam_data_notify(EVT_Event_t *evt) {
     return;
   }
 
-  int cam_file = open("/var/stubborn/cam.jpg", O_WRONLY|O_APPEND|O_CREAT, 0666);
-  if (0 == cam_file) {
-    perror("failed to open /var/stubborn/cam.jpb");
-    return;
+  // Beginning of jpg?
+  if (msg_evt->length > 2 && msg_evt->data[0] == 0xFF && msg_evt->data[1] == 0xD8) {
+    if (0 != cam_file) close(cam_file);
+    cam_file = 0;
   }
 
-  size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
-  printf("wrote %lu bytes to cam.jpg\n", wb);
+  if (0 == cam_file) {
+    count = 0;
+    printf("opening %s\n", CAM_DATA_FILE);
+    cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
+    if (0 == cam_file) {
+      perror("failed to open /var/stubborn/cam.jpb");
+      return;
+    }
+  }
 
-  close(cam_file);
+  count++;
+
+  size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
+  printf("[%d %d] wrote %lu bytes to cam.jpg\n", msg_evt->seq_num, count, wb);
+
+  // End of jpg?
+  if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
+    printf("closing cam file\n");
+    close(cam_file);
+    cam_file = 0;
+  }
 
   return;
 }
