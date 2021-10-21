@@ -509,6 +509,7 @@ int main(int argc, char const *argv[])
     EVT_subscribe(&evt, &rfm_notify);
     EVT_subscribe(&evt, &to_notify);
     EVT_subscribe(&evt, &com_msg_notify);
+    EVT_subscribe(&evt, &cam_data_notify);
     EVT_subscribe(&evt, &ci_ready_notify);
     EVT_subscribe(&evt, &ci_ack_notify);
 
