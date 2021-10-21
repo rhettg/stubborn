@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -480,15 +481,16 @@ void cam_data_notify(EVT_Event_t *evt) {
     return;
   }
 
-  FILE *cam_file = fopen("/var/stubborn/cam.jpg", "a");
-  if (NULL == cam_file) {
+  int cam_file = open("/var/stubborn/cam.jpg", O_WRONLY|O_APPEND|O_CREAT, 0666);
+  if (0 == cam_file) {
     perror("failed to open /var/stubborn/cam.jpb");
     return;
   }
 
-  size_t wb = fwrite(msg_evt->data, msg_evt->length, 1, cam_file);
+  size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
+  printf("wrote %lu bytes to cam.jpg\n", wb);
 
-  fclose(cam_file);
+  close(cam_file);
 
   return;
 }
