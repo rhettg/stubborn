@@ -25,6 +25,25 @@ int TMR_enqueue(TMR_t *tmr, EVT_Event_t *e, unsigned long notify_at)
     return -1;
 }
 
+int TMR_clear(TMR_t *tmr, EVT_Event_t *e)
+{
+    if (0 == tmr) {
+        return -1;
+    }
+
+    if (0 == e) {
+        return -1;
+    }
+
+    for (int i = 0; i < TMR_MAX_TIMERS; i++) {
+        if (e == tmr->events[i]) {
+            tmr->event_notify[i] = 0;
+            tmr->events[i] = 0;
+        }
+    }
+    return 0;
+}
+
 int TMR_handle(TMR_t *tmr, unsigned long now)
 {
     if (0 == tmr || 0 == tmr->evt) {
