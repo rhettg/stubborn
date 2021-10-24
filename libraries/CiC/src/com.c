@@ -153,6 +153,7 @@ int COM_send_reply(COM_t *com, uint8_t channel, uint16_t seq_num, uint8_t *data,
     }
 
     com->data_len = 0;
+    com->msg_type = COM_TYPE_REPLY;
 
     uint8_t *payload = com->data_buf;
 
