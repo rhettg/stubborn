@@ -20,6 +20,8 @@ static uint8_t encode_header(uint8_t type)
 // A given payload may be sent more than once if a reply is never received.
 void dispatch_send(COM_t *com, unsigned long now)
 {
+    TMR_clear(com->tmr, &(com->dispatch_event));
+
     // If our payload is empty we have nothing to do. This was probably triggered by a left-over retry timer.
     if (0 == com->data_len) {
         return;
