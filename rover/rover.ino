@@ -14,6 +14,8 @@ extern "C" {
 #include "events.h"
 #include "errors.h"
 
+#define DEBUG
+
 #define LED 13
 
 #define MAX_CMD       64
@@ -176,7 +178,7 @@ void com_ci_notify(EVT_Event_t *evt)
     Error(ERR_COM_SEND);
   }
 
-  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, msg_evt->seq_num)) {
+  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, msg_evt->channels[COM_CHANNEL_CI].seq_num)) {
     Error(ERR_TO_SET);
   }
 }
@@ -210,6 +212,11 @@ void syncTO()
     if (0 < to_size) {
       int ret = COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_TO, to_buf, to_size, millis());
       // No sense complaining about send buffer being full, just wait for the next round.
+      if (-2 == ret) {
+        #ifdef DEBUG
+        Serial.println("syncTO: COM buffer full");
+        #endif
+      }
       if (0 > ret && -2 != ret) {
         Error(ERR_COM_SEND);
       }

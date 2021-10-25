@@ -2,9 +2,9 @@
 #define STUBBORN_h
 
 // Channels for communications layer
-#define COM_CHANNEL_TO 1
-#define COM_CHANNEL_CI 2
-#define COM_CHANNEL_CAM_DATA 3
+#define COM_CHANNEL_TO 0
+#define COM_CHANNEL_CI 1
+#define COM_CHANNEL_CAM_DATA 2
 
 // Mission specific values. These can be shared between the Rover and the Ground State
 #define EVT_MAX_HANDLERS 12
