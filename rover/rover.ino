@@ -178,7 +178,7 @@ void com_ci_notify(EVT_Event_t *evt)
     Error(ERR_COM_SEND);
   }
 
-  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, msg_evt->channels[COM_CHANNEL_CI].seq_num)) {
+  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, com.channels[COM_CHANNEL_CI].seq_num)) {
     Error(ERR_TO_SET);
   }
 }
