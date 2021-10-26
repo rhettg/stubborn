@@ -110,6 +110,7 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length, unsigned long now)
     if (COM_TYPE_REPLY == msg_evt.msg_type && com->channels[msg_evt.channel].seq_num == msg_evt.seq_num) {
         // We got our reply, make sure we don't send it again.
         com->channels[msg_evt.channel].data_len = 0;
+        TMR_clear(com->tmr, &(com->channels[msg_evt.channel].dispatch_event));
     }
 
     EVT_notify(com->evt, (EVT_Event_t *)&msg_evt);
