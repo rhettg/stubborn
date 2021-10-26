@@ -1,5 +1,4 @@
 #include "tmr.h"
-#include <stdio.h>
 
 int TMR_enqueue(TMR_t *tmr, EVT_Event_t *e, unsigned long notify_at)
 {
@@ -10,6 +9,7 @@ int TMR_enqueue(TMR_t *tmr, EVT_Event_t *e, unsigned long notify_at)
     if (0 == e) {
         return -1;
     }
+
 
     for (int i = 0; i < TMR_MAX_TIMERS; i++) {
         if (tmr->event_notify[i] == 0) {
@@ -46,6 +46,8 @@ int TMR_clear(TMR_t *tmr, EVT_Event_t *e)
 
 int TMR_handle(TMR_t *tmr, unsigned long now)
 {
+    EVT_Event_t *notify_event;
+
     if (0 == tmr || 0 == tmr->evt) {
         return -1;
     }
@@ -63,10 +65,13 @@ int TMR_handle(TMR_t *tmr, unsigned long now)
         }
 
         if (tmr->event_notify[i] < now) {
-            EVT_notify(tmr->evt, tmr->events[i]);
+            notify_event = tmr->events[i];
 
             tmr->event_notify[i] = 0;
             tmr->events[i] = 0;
+
+            EVT_notify(tmr->evt, notify_event);
+            notify_event = 0;
         } else {
             if ((0 == tmr->wake_millis) || (tmr->event_notify[i] < tmr->wake_millis)) {
                 tmr->wake_millis = tmr->event_notify[i];
