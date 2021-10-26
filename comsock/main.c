@@ -540,7 +540,7 @@ int main(int argc, char const *argv[])
 
     EVT_subscribe(&evt, &debugEvent);
 
-    EVT_subscribe(&evt, COM_notify);
+    EVT_subscribe(&evt, &COM_notify);
     EVT_subscribe(&evt, &rfm_notify);
     EVT_subscribe(&evt, &to_notify);
     EVT_subscribe(&evt, &com_msg_notify);
