@@ -86,10 +86,10 @@ void checkCamData()
   uint8_t temp = 0, temp_last = 0;
 
   if (0 < camBufNdx) {
-    int ret = COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_CAM_DATA, camBuf, camBufNdx, millis());
+    int ret = COM_send(&com, COM_TYPE_REQ, COM_CHANNEL_CAM_DATA, camBuf, camBufNdx, millis());
     if (0 == ret) {
       camBufNdx = 0;
-    } else if (-2 != ret) {
+    } else if (0 > ret && -2 != ret) {
       // We only complain about non-buffer errors.
       Error(ERR_COM_SEND);
     }
