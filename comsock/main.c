@@ -495,7 +495,7 @@ void cam_data_notify(EVT_Event_t *evt) {
   if (0 == cam_file) {
     count = 0;
     seq_num = 0;
-    printf("opening %s\n", CAM_DATA_FILE);
+    log_debug("opening %s", CAM_DATA_FILE);
     cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
     if (0 == cam_file) {
       perror("failed to open /var/stubborn/cam.jpb");
@@ -507,15 +507,15 @@ void cam_data_notify(EVT_Event_t *evt) {
 
   if (msg_evt->seq_num > seq_num) {
     size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
-    printf("[%d %d] wrote %lu bytes to cam.jpg\n", msg_evt->seq_num, count, wb);
+    log_debug("seq:%d count:%d - wrote %lu bytes to cam.jpg", msg_evt->seq_num, count, wb);
     seq_num = msg_evt->seq_num;
   } else {
-    printf("[%d %d] duplicate packet for cam.jpg\n", msg_evt->seq_num, count);
+    log_debug("seq:%d count:%d duplicate packet for cam.jpg", msg_evt->seq_num, count);
   }
 
   // End of jpg?
   if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
-    printf("closing cam file\n");
+    log_debug("closing cam file");
     close(cam_file);
     cam_file = 0;
   }
