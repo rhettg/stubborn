@@ -474,6 +474,8 @@ void to_notify(EVT_Event_t *evt) {
 
 void cam_data_notify(EVT_Event_t *evt) {
   static int count;
+  static int seq_num;
+
   if (COM_EVT_TYPE_MSG != evt->type) {
     return;
   }
@@ -492,6 +494,7 @@ void cam_data_notify(EVT_Event_t *evt) {
 
   if (0 == cam_file) {
     count = 0;
+    seq_num = 0;
     printf("opening %s\n", CAM_DATA_FILE);
     cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
     if (0 == cam_file) {
@@ -502,14 +505,24 @@ void cam_data_notify(EVT_Event_t *evt) {
 
   count++;
 
-  size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
-  printf("[%d %d] wrote %lu bytes to cam.jpg\n", msg_evt->seq_num, count, wb);
+  if (msg_evt->seq_num > seq_num) {
+    size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
+    printf("[%d %d] wrote %lu bytes to cam.jpg\n", msg_evt->seq_num, count, wb);
+    seq_num = msg_evt->seq_num;
+  } else {
+    printf("[%d %d] duplicate packet for cam.jpg\n", msg_evt->seq_num, count);
+  }
 
   // End of jpg?
   if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
     printf("closing cam file\n");
     close(cam_file);
     cam_file = 0;
+  }
+
+  uint8_t r = 0;
+  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, (uint8_t *)&r, sizeof(r), millis())) {
+    printf("error sending reply\n");
   }
 
   return;
