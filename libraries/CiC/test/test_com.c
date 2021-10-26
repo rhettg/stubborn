@@ -86,6 +86,64 @@ static char * test_req_reply() {
     return 0;
 }
 
+static char * test_req_retry_reply() {
+    EVT_t evt = {0};
+    EVT_init(&evt);
+
+    TMR_t tmr = {0};
+    tmr.evt = &evt;
+
+    COM_t comA = {0};
+    COM_init(&comA, &evt, &tmr);
+
+    COM_t comB = {0};
+    COM_init(&comB, &evt, &tmr);
+
+    char payload[] = "Hello World";
+
+    EVT_subscribe(&evt, &test_com_notify);
+    EVT_subscribe(&evt, &COM_notify);
+
+    reset_data_event();
+    int ret = COM_send(&comA, COM_TYPE_REQ, 1, (uint8_t *)&payload, sizeof(payload), 1);
+    mu_assert("bad send", ret == 0);
+
+    mu_assert("length is 0", data_event.length > sizeof(payload));
+    mu_assert("data is null", data_event.data != NULL);
+
+    reset_data_event();
+    TMR_handle(&tmr, 3000);
+    mu_assert("retry, length is 0", data_event.length > sizeof(payload));
+    mu_assert("retry, data is null", data_event.data != NULL);
+
+    ret = COM_recv(&comB, data_event.data, data_event.length, 3001);
+    mu_assert("bad recv", ret == 0);
+
+    mu_assert("wrong channel", 1 == msg_event.channel);
+
+    // Send a reply
+    reset_data_event();
+    ret = COM_send_reply(&comB, msg_event.channel, msg_event.seq_num, (uint8_t *)&payload, sizeof(payload), 3501);
+    mu_assert("bad send_reply", ret == 0);
+    mu_assert("length too small", data_event.length > sizeof(payload));
+    mu_assert("data is null", data_event.data != NULL);
+
+    reset_msg_event();
+    ret = COM_recv(&comA, data_event.data, data_event.length, 3001);
+    mu_assert("bad recv", ret == 0);
+
+    mu_assert("wrong type", COM_TYPE_REPLY == msg_event.msg_type);
+    mu_assert("wrong channel", 1 == msg_event.channel);
+    mu_assert("still waiting", 0 == comA.channels[1].data_len);
+
+    reset_data_event();
+    TMR_handle(&tmr, 8000);
+    mu_assert("length is not 0", data_event.length == 0);
+    mu_assert("data is not null", data_event.data == NULL);
+
+    return 0;
+}
+
 static char * test_delay_send() {
     EVT_t evt = {0};
     EVT_init(&evt);
@@ -134,6 +192,7 @@ static char * test_delay_send() {
 static char * all_tests() {
     mu_run_test(test_req_reply);
     mu_run_test(test_delay_send);
+    mu_run_test(test_req_retry_reply);
     return 0;
 }
 
