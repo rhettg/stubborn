@@ -14,7 +14,7 @@ extern "C" {
 #include "events.h"
 #include "errors.h"
 
-#define DEBUG
+// #define DEBUG
 
 #define LED 13
 
@@ -42,9 +42,8 @@ CI_t ci   = {0};
 TBL_t tbl = {0};
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
-  while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
+  // while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
 
   EVT_init(&evt);
