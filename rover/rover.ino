@@ -126,7 +126,7 @@ void loop() {
 
   checkRFM();
 
-  //checkImpactSensor();
+  checkImpactSensor();
 
   checkCamData();
 
