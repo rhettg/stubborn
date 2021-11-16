@@ -13,7 +13,7 @@ struct {
 
 void checkImpactSensor()
 {
-  impactSensorEvent.value = analogRead(0);
+  impactSensorEvent.value = analogRead(5);
   if (0 != EVT_notify(&evt, (EVT_Event_t *)&impactSensorEvent)) {
     Error(ERR_EVT);
   }

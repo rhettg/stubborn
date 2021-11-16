@@ -65,15 +65,16 @@ type metricData struct {
 }
 
 type telemetryData struct {
-	NOW    int
-	UP     int
-	LOOP   int
-	COM    int
-	RSSI   int
-	ERR    int
-	MOTORA int
-	MOTORB int
+	NOW     int
+	UP      int
+	LOOP    int
+	COM     int
+	RSSI    int
+	ERR     int
+	MOTORA  int
+	MOTORB  int
 	CAM_LEN int
+	IMPACT  int
 }
 
 func updateMetrics(a *tview.Application, t *tview.Table, m []metricData) {
@@ -97,6 +98,7 @@ func newMetrics(td telemetryData) []metricData {
 		{Label: "MOTOR", Value: fmt.Sprintf("%d / %d", td.MOTORA, td.MOTORB)},
 		{Label: "Cam Len", Value: fmt.Sprintf("%dB", td.CAM_LEN)},
 		{Label: "Last Loop", Value: fmt.Sprintf("%dms", td.LOOP)},
+		{Label: "Impact", Value: fmt.Sprintf("%d", td.IMPACT)},
 	}
 
 	return metricData
@@ -108,6 +110,10 @@ func runMetrics(a *tview.Application, tbl *tview.Table) {
 		log.Println("failed opening to.json:", err)
 		return
 	}
+
+	hasImpact := false
+	imgAvailable := false
+	moving := false
 
 	td := telemetryData{}
 
@@ -122,6 +128,29 @@ func runMetrics(a *tview.Application, tbl *tview.Table) {
 
 		m := newMetrics(td)
 		updateMetrics(a, tbl, m)
+
+		if !hasImpact && td.IMPACT == 1 {
+			log.Println("IMPACT detected")
+			hasImpact = true
+		} else if td.IMPACT == 0 {
+			hasImpact = false
+		}
+
+		if !imgAvailable && td.CAM_LEN > 0 {
+			log.Println("CAM Image downloading")
+			imgAvailable = true
+		} else if td.CAM_LEN == 0 {
+			imgAvailable = false
+			log.Println("CAM Image downloaded")
+		}
+
+		if !moving && td.MOTORA != 0 || td.MOTORB != 0 {
+			moving = true
+			log.Println(fmt.Sprintf("Motors engaged %d / %d", td.MOTORA, td.MOTORB))
+		} else if moving && td.MOTORA == 0 && td.MOTORB == 0 {
+			log.Println("Motors stopped")
+			moving = false
+		}
 	}
 }
 
