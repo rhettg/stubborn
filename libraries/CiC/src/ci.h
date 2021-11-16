@@ -124,6 +124,7 @@ int CI_ack(CI_t *ci, unsigned long cmd_num, uint8_t result, unsigned long ack_at
  * CI_ingest accepts command data and dispatches to appropriate handlers.
  * 
  * @param ci CI_t component providing shared CI datastructures.
+ * @param seq_num The sequence number of the command. 
  * @param cmd The command to dispatch.
  * @param data Data for the command.
  * 
@@ -131,6 +132,6 @@ int CI_ack(CI_t *ci, unsigned long cmd_num, uint8_t result, unsigned long ack_at
  * @returns CI_R_ERR_NOT_FOUND to indicate no handler is available for the command.
  * @returns -1 for an error. Invalid cmd.
  */
-int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA]);
+int CI_ingest(CI_t *ci, uint16_t seq_num, uint8_t cmd, uint8_t data[CI_MAX_DATA]);
 
 #endif

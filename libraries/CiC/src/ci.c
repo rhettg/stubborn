@@ -37,7 +37,7 @@ int CI_ack(CI_t *ci, unsigned long cmd_num, uint8_t result, unsigned long ack_at
     return 0;
 }
 
-int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA])
+int CI_ingest(CI_t *ci, uint16_t seq_num, uint8_t cmd, uint8_t data[CI_MAX_DATA])
 {
     if (cmd > CI_MAX_CMDS) {
         return -1;
@@ -49,7 +49,24 @@ int CI_ingest(CI_t *ci, uint8_t cmd, uint8_t data[CI_MAX_DATA])
         return CI_R_ERR_NOT_FOUND;
     }
 
-    return ci->handlers[cmd](data);
+    // This would be better to require strictly increasing sequence numbers, but
+    // we'll need some way to reset the CI system when a channel is restarted
+    // (like when the ground station restarts)
+    //
+    // As it stands we still have a problem because if the ground station only
+    // ever sends a single cmd and then restarts, we'll always think it's a
+    // resend.
+    // TODO: fix this
+    if (seq_num != ci->current.cmd_num) {
+        ci->current.cmd = cmd;
+
+        memcpy(ci->current.data, data, CI_MAX_DATA);
+
+        ci->current.cmd_num = seq_num;
+        ci->current.result = ci->handlers[cmd](data);
+    }
+
+    return ci->current.result;
 }
 
 int CI_register(CI_t *ci, uint8_t cmd, int(*handler)(uint8_t[CI_MAX_DATA]))
