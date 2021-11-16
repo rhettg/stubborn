@@ -425,9 +425,9 @@ void write_to_json_file(TO_t *to)
         json_field_int(to_json_file, "IMPACT", 0);
       }
     } else if (TO_PARAM_MOTOR_A == to->objects[i].param) {
-      json_field_int(to_json_file, "MOTORA", to->objects[i].data);
+      json_field_int(to_json_file, "MOTORA", (int)to->objects[i].data);
     } else if (TO_PARAM_MOTOR_B == to->objects[i].param) {
-      json_field_int(to_json_file, "MOTORB", to->objects[i].data);
+      json_field_int(to_json_file, "MOTORB", (int)to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       json_field_int(to_json_file, "RSSI", to->objects[i].data);
     } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
