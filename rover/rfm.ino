@@ -47,7 +47,9 @@ void rfmInit()
   EVT_subscribe(&evt, &handleRFMReady);
   EVT_subscribe(&evt, &rfm_notify);
 
+#ifdef ENABLE_SERIAL
   Serial.print("RFM69 radio @");  Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
+#endif
 }
 
 void checkRFM()

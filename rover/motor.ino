@@ -5,7 +5,11 @@ extern "C" {
 }
 
 uint8_t enablePin[] = {9, 10};
+#ifdef ENABLE_SERIAL
 uint8_t motorPin1[] = {8, 6};
+#else
+uint8_t motorPin1[] = {1, 6};
+#endif
 uint8_t motorPin2[] = {7, 5};
 
 struct {
