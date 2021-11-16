@@ -14,19 +14,7 @@ extern "C" {
 #include "events.h"
 #include "errors.h"
 
-
-// ENABLE_SERIAL will allow use of logging to Serial.
-// Due to pin limitations, we can't use both the motors and the serial port at
-// the same time.
-//#define ENABLE_SERIAL
-
-#ifndef ENABLE_SERIAL
-// Skip importing the Serial library if we're not using it.
-#define HardwareSerial_h
-#endif
-
-// Define DEBUG to enable debug messages. This will slow down telecommunications quite a bit.
-//#define DEBUG
+#define DEBUG
 
 #define LED 13
 
@@ -54,11 +42,10 @@ CI_t ci   = {0};
 TBL_t tbl = {0};
 
 void setup() {
-  #ifdef ENABLE_SERIAL
+  // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
-  #endif
 
   EVT_init(&evt);
   ci.evt = &evt;
@@ -70,9 +57,7 @@ void setup() {
 #endif
 
   if (0 != TO_init(&to)) {
-    #ifdef ENABLE_SERIAL
     Serial.println("FAIL: TO init");
-    #endif
     abort();
   }
 
@@ -131,9 +116,7 @@ void setup() {
   // Send initial TO broadcast and start sync schedule.
   handleSyncTO((EVT_Event_t *)&syncTOEvent);
 
-  #ifdef ENABLE_SERIAL
   Serial.println("Ready");
-  #endif
 }
 
 void loop() {

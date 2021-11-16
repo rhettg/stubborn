@@ -33,15 +33,11 @@ void camInit()
     myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
     testVal = myCAM.read_reg(ARDUCHIP_TEST1);
     if (testVal != 0x55){
-      #ifdef ENABLE_SERIAL
       Serial.println("Camera Error");
-      #endif
       delay(1000);
       continue;
     }else{
-      #ifdef ENABLE_SERIAL
       Serial.println("Camera On-Line");
-      #endif
       break;
     }
   }
