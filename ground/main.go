@@ -73,6 +73,7 @@ type telemetryData struct {
 	ERR    int
 	MOTORA int
 	MOTORB int
+	CAM_LEN int
 }
 
 func updateMetrics(a *tview.Application, t *tview.Table, m []metricData) {
@@ -94,6 +95,7 @@ func newMetrics(td telemetryData) []metricData {
 		{Label: "RSSI", Value: fmt.Sprintf("%d", td.RSSI)},
 		{Label: "COM Seq", Value: fmt.Sprintf("%d", td.COM)},
 		{Label: "MOTOR", Value: fmt.Sprintf("%d / %d", td.MOTORA, td.MOTORB)},
+		{Label: "Cam Len", Value: fmt.Sprintf("%dB", td.CAM_LEN)},
 		{Label: "Last Loop", Value: fmt.Sprintf("%dms", td.LOOP)},
 	}
 

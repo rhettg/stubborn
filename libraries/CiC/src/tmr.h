@@ -33,6 +33,14 @@ typedef struct {
 int TMR_enqueue(TMR_t *tmr, EVT_Event_t *e, unsigned long notify_at);
 
 /**
+ * TMR_clear removes any timers for the specified event
+ *
+ * @param tmr TMR_t instance
+ * @param e EVT_Event_t to enqueue
+ */
+int TMR_clear(TMR_t *tmr, EVT_Event_t *e);
+
+/**
  * TMR_handle is the scheduling hook into TMR. It should be called frequently
  * to give TMR an opportunity to dispatch scheduled events.
  *

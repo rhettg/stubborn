@@ -14,6 +14,8 @@ extern "C" {
 #include "events.h"
 #include "errors.h"
 
+// #define DEBUG
+
 #define LED 13
 
 #define MAX_CMD       64
@@ -40,9 +42,8 @@ CI_t ci   = {0};
 TBL_t tbl = {0};
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
-  while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
+  // while (!Serial) { delay(1); } // wait until serial console is open, remove if not tethered to computer
   Serial.println("Booting..");
 
   EVT_init(&evt);
@@ -50,7 +51,9 @@ void setup() {
   tmr.evt = &evt;
   COM_init(&com, &evt, &tmr);
 
-  // EVT_subscribe(&evt, &debugEvent);
+#ifdef DEBUG
+  EVT_subscribe(&evt, &debugEvent);
+#endif
 
   if (0 != TO_init(&to)) {
     Serial.println("FAIL: TO init");
@@ -65,6 +68,7 @@ void setup() {
 
   rfmInit();
   motorInit();
+  camInit();
 
   EVT_subscribe(&evt, &COM_notify);
   EVT_subscribe(&evt, &com_ci_notify);
@@ -72,6 +76,7 @@ void setup() {
   EVT_subscribe(&evt, &handleCIStop);
   EVT_subscribe(&evt, &handleImpactSensor);
   EVT_subscribe(&evt, &handleMotorSpeed);
+  EVT_subscribe(&evt, &handleCamPollSnap);
 
   if (0 != CI_register(&ci, CI_CMD_NOOP, &handleCmdNoOp)) {
     Error(ERR_CI_REGISTER);
@@ -103,6 +108,9 @@ void setup() {
   if (0 != CI_register(&ci, CI_CMD_EXT_SET, &handleCmdSet)) {
     Error(ERR_CI_REGISTER);
   }
+  if (0 != CI_register(&ci, CI_CMD_EXT_SNAP, &handleCmdSnap)) {
+    Error(ERR_CI_REGISTER);
+  }
 
   // Send initial TO broadcast and start sync schedule.
   handleSyncTO((EVT_Event_t *)&syncTOEvent);
@@ -118,7 +126,9 @@ void loop() {
 
   checkRFM();
 
-  checkImpactSensor();
+  //checkImpactSensor();
+
+  checkCamData();
 
   if (0 != TO_set(&to, TO_PARAM_MILLIS, millis())) {
     Error(ERR_TO_SET);
@@ -167,7 +177,7 @@ void com_ci_notify(EVT_Event_t *evt)
     Error(ERR_COM_SEND);
   }
 
-  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, msg_evt->seq_num)) {
+  if (0 != TO_set(&to, TO_PARAM_COM_SEQ, com.channels[COM_CHANNEL_CI].seq_num)) {
     Error(ERR_TO_SET);
   }
 }
@@ -201,6 +211,11 @@ void syncTO()
     if (0 < to_size) {
       int ret = COM_send(&com, COM_TYPE_BROADCAST, COM_CHANNEL_TO, to_buf, to_size, millis());
       // No sense complaining about send buffer being full, just wait for the next round.
+      if (-2 == ret) {
+        #ifdef DEBUG
+        Serial.println("syncTO: COM buffer full");
+        #endif
+      }
       if (0 > ret && -2 != ret) {
         Error(ERR_COM_SEND);
       }

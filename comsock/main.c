@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -21,6 +22,7 @@
 #define TO_JSON_FILE "/var/stubborn/to.json"
 #define SOCK_FILE    "/var/stubborn/comsock"
 #define RADIO_FILE   "/var/stubborn/radio"
+#define CAM_DATA_FILE "/var/stubborn/cam.jpg"
 
 EVT_t evt = {0};
 TMR_t tmr = {0};
@@ -35,6 +37,7 @@ unsigned long start_time = 0;
 
 FILE *to_file = {0};
 FILE *to_json_file = {0};
+int cam_file = 0;
 
 void log_format(const char* tag, const char* message, va_list args) {   time_t now;     time(&now);     char * date =ctime(&now);   date[strlen(date) - 1] = '\0';  printf("%s [%s] ", date, tag);  vprintf(message, args);     printf("\n"); }
 
@@ -364,6 +367,8 @@ void write_to_file(TO_t *to)
       fprintf(to_file, "MOTORB=%d", to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       fprintf(to_file, "RSSI=%d", to->objects[i].data);
+    } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
+      fprintf(to_file, "CAM_LEN=%lu", (unsigned long)to->objects[i].data);
     } else {
       fprintf(to_file, "%d=0x%08x", to->objects[i].param, to->objects[i].data);
     }
@@ -425,6 +430,8 @@ void write_to_json_file(TO_t *to)
       json_field_int(to_json_file, "MOTORB", to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       json_field_int(to_json_file, "RSSI", to->objects[i].data);
+    } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
+      json_field_int(to_json_file, "CAM_LEN", to->objects[i].data);
     } else {
       sprintf(param_buf, "%d", to->objects[i].param);
       sprintf(value_buf, "0x%08x", to->objects[i].data);
@@ -465,6 +472,62 @@ void to_notify(EVT_Event_t *evt) {
   return;
 }
 
+void cam_data_notify(EVT_Event_t *evt) {
+  static int count;
+  static int seq_num;
+
+  if (COM_EVT_TYPE_MSG != evt->type) {
+    return;
+  }
+
+  COM_Msg_Event_t *msg_evt = (COM_Msg_Event_t *)evt;
+
+  if (COM_CHANNEL_CAM_DATA != msg_evt->channel) {
+    return;
+  }
+
+  // Beginning of jpg?
+  if (msg_evt->length > 2 && msg_evt->data[0] == 0xFF && msg_evt->data[1] == 0xD8) {
+    if (0 != cam_file) close(cam_file);
+    cam_file = 0;
+  }
+
+  if (0 == cam_file) {
+    count = 0;
+    seq_num = 0;
+    log_debug("opening %s", CAM_DATA_FILE);
+    cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
+    if (0 == cam_file) {
+      perror("failed to open /var/stubborn/cam.jpb");
+      return;
+    }
+  }
+
+  count++;
+
+  if (msg_evt->seq_num > seq_num) {
+    size_t wb = write(cam_file, msg_evt->data, msg_evt->length);
+    log_debug("seq:%d count:%d - wrote %lu bytes to cam.jpg", msg_evt->seq_num, count, wb);
+    seq_num = msg_evt->seq_num;
+  } else {
+    log_debug("seq:%d count:%d duplicate packet for cam.jpg", msg_evt->seq_num, count);
+  }
+
+  // End of jpg?
+  if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
+    log_debug("closing cam file");
+    close(cam_file);
+    cam_file = 0;
+  }
+
+  uint8_t r = 0;
+  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, (uint8_t *)&r, sizeof(r), millis())) {
+    printf("error sending reply\n");
+  }
+
+  return;
+}
+
 
 int main(int argc, char const *argv[])
 {
@@ -477,10 +540,11 @@ int main(int argc, char const *argv[])
 
     EVT_subscribe(&evt, &debugEvent);
 
-    EVT_subscribe(&evt, COM_notify);
+    EVT_subscribe(&evt, &COM_notify);
     EVT_subscribe(&evt, &rfm_notify);
     EVT_subscribe(&evt, &to_notify);
     EVT_subscribe(&evt, &com_msg_notify);
+    EVT_subscribe(&evt, &cam_data_notify);
     EVT_subscribe(&evt, &ci_ready_notify);
     EVT_subscribe(&evt, &ci_ack_notify);
 

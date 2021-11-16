@@ -26,7 +26,7 @@
 // How long to wait after receiving a packet to allow replying.
 // This is necessary to deal with single-duplex radios that need to be switched
 // into receive mode.
-#define COM_SEND_DELAY 500
+#define COM_SEND_DELAY 100
 
 #define COM_SEND_RETRY 2500
 
@@ -44,6 +44,7 @@ typedef struct {
 // Maximum length for the communications buffer. This is set based on how large
 // the physical communication system can send and receive.
 #define COM_MAX_LENGTH 60
+#define COM_MAX_CHANNELS 3
 
 // Event to indicate we should consider sending out the payload
 #define COM_EVT_TYPE_DISPATCH 13
@@ -53,7 +54,17 @@ typedef struct COM COM_t;
 typedef struct {
     EVT_Event_t event;
     COM_t *com;
+    uint8_t channel;
 } COM_Dispatch_Event_t;
+
+typedef struct COM_Channel {
+    uint8_t msg_type;
+    uint16_t seq_num;
+    size_t data_len;
+    uint8_t data_buf[COM_MAX_LENGTH];
+
+    COM_Dispatch_Event_t dispatch_event;
+} COM_Channel_t;
 
 /*
  * COM_t is the communications component.
@@ -65,18 +76,14 @@ typedef struct COM {
     EVT_t   *evt;
     TMR_t   *tmr;
 
-    uint16_t seq_num;
-
     // recv_at marks when data was last received from our radio
     // This is helpful because we need to be friendly with our peers by not sending packets before their radio
     // is ready.
     unsigned long last_recv_at;
 
-    COM_Dispatch_Event_t dispatch_event;
+    COM_Channel_t channels[COM_MAX_CHANNELS];
 
-    uint8_t msg_type;
-    size_t data_len;
-    uint8_t data_buf[COM_MAX_LENGTH];
+
 } COM_t;
 
 // Event to indicate data is available for sending via communications device.
