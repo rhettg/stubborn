@@ -5,7 +5,7 @@ extern "C" {
 }
 
 uint8_t enablePin[] = {9, 10};
-uint8_t motorPin1[] = {8, 6};
+uint8_t motorPin1[] = {A0, 6};
 uint8_t motorPin2[] = {7, 5};
 
 struct {
