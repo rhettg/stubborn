@@ -10,11 +10,11 @@
 #include <stdarg.h>
 #include <math.h>
 
+#include "stubborn.h"
 #include "evt.h"
 #include "com.h"
 #include "ci.h"
 #include "to.h"
-#include "stubborn.h"
 
 #include "command.h"
 

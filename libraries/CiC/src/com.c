@@ -20,7 +20,8 @@ static uint8_t encode_header(uint8_t type)
 // A given payload may be sent more than once if a reply is never received.
 void dispatch_send(COM_t *com, uint8_t channel, unsigned long now)
 {
-    TMR_clear(com->tmr, &(com->channels[channel].dispatch_event));
+    EVT_Event_t *d_event = (EVT_Event_t *)&(com->channels[channel].dispatch_event);
+    TMR_clear(com->tmr, d_event);
 
     // If our payload is empty we have nothing to do. This was probably
     // triggered by a left-over retry timer.
@@ -30,7 +31,7 @@ void dispatch_send(COM_t *com, uint8_t channel, unsigned long now)
 
     // Wait at least COM_SEND_DELAY since the last received packet to ensure somebody is listening.
     if (0 < com->last_recv_at && now - com->last_recv_at < COM_SEND_DELAY) {
-        TMR_enqueue(com->tmr, &(com->channels[channel].dispatch_event), com->last_recv_at+COM_SEND_DELAY);
+        TMR_enqueue(com->tmr, d_event, com->last_recv_at+COM_SEND_DELAY);
         return;
     }
 
@@ -42,7 +43,7 @@ void dispatch_send(COM_t *com, uint8_t channel, unsigned long now)
     EVT_notify(com->evt, (EVT_Event_t *)&evt);
 
     if (COM_TYPE_REQ == com->channels[channel].msg_type) {
-        TMR_enqueue(com->tmr, &(com->channels[channel].dispatch_event), now+COM_SEND_RETRY);
+        TMR_enqueue(com->tmr, d_event, now+COM_SEND_RETRY);
     } else {
         com->channels[channel].data_len = 0;
     }
@@ -110,7 +111,7 @@ int COM_recv(COM_t *com, uint8_t *data, size_t length, unsigned long now)
     if (COM_TYPE_REPLY == msg_evt.msg_type && com->channels[msg_evt.channel].seq_num == msg_evt.seq_num) {
         // We got our reply, make sure we don't send it again.
         com->channels[msg_evt.channel].data_len = 0;
-        TMR_clear(com->tmr, &(com->channels[msg_evt.channel].dispatch_event));
+        TMR_clear(com->tmr, (EVT_Event_t *)&(com->channels[msg_evt.channel].dispatch_event));
     }
 
     EVT_notify(com->evt, (EVT_Event_t *)&msg_evt);
