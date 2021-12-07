@@ -96,6 +96,8 @@ void checkCamData()
     return;
   }
 
+  unsigned long start = millis();
+
   if (0 < camSnapLength) {
     myCAM.CS_LOW();
     myCAM.set_fifo_burst();
@@ -121,6 +123,9 @@ void checkCamData()
     myCAM.CS_HIGH();
 
     if (0 != TO_set(&to, TO_PARAM_CAM_LEN, camSnapLength)) {
+      Error(ERR_TO_SET);
+    }
+    if (0 != TO_set(&to, TO_PARAM_CAM_READ_MS, millis()-start)) {
       Error(ERR_TO_SET);
     }
   }

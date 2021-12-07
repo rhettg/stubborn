@@ -29,5 +29,6 @@
 #define TO_PARAM_MOTOR_B 41
 #define TO_PARAM_IMPACT  50
 #define TO_PARAM_CAM_LEN 60
+#define TO_PARAM_CAM_READ_MS 61
 
 #endif
