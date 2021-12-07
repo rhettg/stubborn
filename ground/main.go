@@ -139,7 +139,7 @@ func runMetrics(a *tview.Application, tbl *tview.Table) {
 		if !imgAvailable && td.CAM_LEN > 0 {
 			log.Println("CAM Image downloading")
 			imgAvailable = true
-		} else if td.CAM_LEN == 0 {
+		} else if imgAvailable && td.CAM_LEN == 0 {
 			imgAvailable = false
 			log.Println("CAM Image downloaded")
 		}

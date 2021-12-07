@@ -3,11 +3,12 @@
 #include <time.h>
 #include <string.h>
 
+#include "stubborn.h"
+
 #include "ci.h"
 #include "com.h"
 
 #include "command.h"
-#include "stubborn.h"
 
 bool is_cmd(const char *tok, int tok_len, const char *cmd)
 {
