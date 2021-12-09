@@ -29,9 +29,9 @@ TMR_t tmr = {0};
 COM_t com = {0};
 CI_t  ci  = {0};
 
-int current_client = 0;
-int radio = 0;
-int server = 0;
+int current_client = -1;
+int radio = -1;
+int server = -1;
 
 unsigned long start_time = 0;
 
@@ -163,7 +163,7 @@ int run_server()
 
         FD_SET(radio, &set);
 
-        if (0 == current_client) {
+        if (0 > current_client) {
             FD_SET(server, &set);
         } else {
             FD_SET(current_client, &set);
@@ -186,7 +186,7 @@ int run_server()
             if (0 == rlen) {
               log_error("radio: closed, exiting");
               close(radio);
-              radio = 0;
+              radio = -1;
               return 0;
             }
 
@@ -224,12 +224,14 @@ int run_server()
                     log_error("client: failed parsing command: %d", rp);
                     if (0 > send(current_client, "ERR\n", 4, 0)) {
                         perror("failed to report error");
+                        close(current_client);
+                        current_client = -1;
                     }
                 }
             } else {
                 log_info("client: closing");
                 close(current_client);
-                current_client = 0;
+                current_client = -1;
             }
         }
     }
@@ -311,7 +313,8 @@ void ci_ack_notify(EVT_Event_t *evt)
       return;
   }
 
-  if (0 == current_client) {
+  if (0 > current_client) {
+      log_debug("ack: no client");
       return;
   }
 
