@@ -172,7 +172,7 @@ int run_server()
         int ret = select(FD_SETSIZE, &set, NULL, NULL, &tv);
         if (0 > ret) {
             perror("failed to select");
-            continue;
+            return (-1);
         }
 
         if (0 != FD_ISSET(radio, &set)) {
@@ -321,6 +321,7 @@ void ci_ack_notify(EVT_Event_t *evt)
   CI_Ack_Event_t *ack = (CI_Ack_Event_t *)evt;
 
   if (CI_R_OK == ack->cmd->result) {
+    log_debug("client: OK");
     if (0 > send(current_client, "OK\n", 3, 0)) {
         perror("failed to send client response");
     }
@@ -329,6 +330,8 @@ void ci_ack_notify(EVT_Event_t *evt)
         perror("failed to send client response");
         return;
     }
+
+    log_debug("client: %s", buf);
     if (0 > send(current_client, buf, strlen(buf), 0)) {
         perror("failed to send client response");
         return;
