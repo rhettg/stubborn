@@ -171,9 +171,9 @@ void com_ci_notify(EVT_Event_t *evt)
     memcpy(data, &msg_evt->data[1], 4);
   }
 
-  int r = CI_ingest(&ci, msg_evt->seq_num, cmd, data);
+  uint8_t r = (uint8_t)CI_ingest(&ci, msg_evt->seq_num, cmd, data);
 
-  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, (uint8_t *)&r, sizeof(r), millis())) {
+  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, &r, sizeof(r), millis())) {
     Error(ERR_COM_SEND);
   }
 
