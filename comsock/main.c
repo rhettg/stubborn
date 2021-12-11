@@ -276,9 +276,9 @@ void com_msg_notify(EVT_Event_t *evt) {
   }
 
   log_debug("com_msg_notify: %d-%d len %ld", msg_evt->channel, msg_evt->seq_num, msg_evt->length);
-  int16_t result = -127;
-  if (2 == msg_evt->length) {
-    result = *(int16_t *)msg_evt->data;
+  uint8_t result = 8;
+  if (1 == msg_evt->length) {
+    result = *(msg_evt->data);
   }
 
   if (0 != CI_ack(&ci, msg_evt->seq_num, result, millis())) {
