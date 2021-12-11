@@ -57,16 +57,19 @@ int CI_ingest(CI_t *ci, uint16_t seq_num, uint8_t cmd, uint8_t data[CI_MAX_DATA]
     // ever sends a single cmd and then restarts, we'll always think it's a
     // resend.
     // TODO: fix this
-    if (seq_num != ci->current.cmd_num) {
-        ci->current.cmd = cmd;
-
-        memcpy(ci->current.data, data, CI_MAX_DATA);
-
-        ci->current.cmd_num = seq_num;
-        ci->current.result = ci->handlers[cmd](data);
+    if (seq_num == ci->current.cmd_num) {
+        return ci->current.result;
     }
 
-    return ci->current.result;
+    int r = ci->handlers[cmd](data);
+
+    ci->current.cmd = cmd;
+    ci->current.cmd_num = seq_num;
+    memcpy(ci->current.data, data, CI_MAX_DATA);
+
+    ci->current.result = r;
+
+    return r;
 }
 
 int CI_register(CI_t *ci, uint8_t cmd, int(*handler)(uint8_t[CI_MAX_DATA]))
