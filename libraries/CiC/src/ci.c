@@ -40,7 +40,7 @@ int CI_ack(CI_t *ci, unsigned long cmd_num, uint8_t result, unsigned long ack_at
 int CI_ingest(CI_t *ci, uint16_t seq_num, uint8_t cmd, uint8_t data[CI_MAX_DATA])
 {
     if (cmd > CI_MAX_CMDS) {
-        return -1;
+        return CI_R_ERR_NOT_FOUND;
     }
 
     if (NULL == ci->handlers[cmd]) {
