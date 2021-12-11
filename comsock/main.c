@@ -45,7 +45,11 @@ void log_error(const char* message, ...) {  va_list args;   va_start(args, messa
 
 void log_info(const char* message, ...) {   va_list args;   va_start(args, message);    log_format("info", message, args);  va_end(args); }
 
+#ifdef DEBUG
 void log_debug(const char* message, ...) {  va_list args;   va_start(args, message);    log_format("debug", message, args);     va_end(args); }
+#else
+void log_debug(const char* message, ...) {  }
+#endif
 
 void fatal(const char *msg)
 {
@@ -154,7 +158,7 @@ int run_server()
 
     struct timeval tv = {0, 100};   // sleep for ten minutes!
 
-    log_debug("starting server");
+    log_info("starting server");
 
     while (1) {
         TMR_handle(&tmr, millis());
@@ -321,7 +325,7 @@ void ci_ack_notify(EVT_Event_t *evt)
   CI_Ack_Event_t *ack = (CI_Ack_Event_t *)evt;
 
   if (CI_R_OK == ack->cmd->result) {
-    log_debug("client: OK");
+    log_info("client: OK");
     if (0 > send(current_client, "OK\n", 3, 0)) {
         perror("failed to send client response");
     }
@@ -331,7 +335,7 @@ void ci_ack_notify(EVT_Event_t *evt)
         return;
     }
 
-    log_debug("client: %s", buf);
+    log_info("client: %s", buf);
     if (0 > send(current_client, buf, strlen(buf), 0)) {
         perror("failed to send client response");
         return;
@@ -501,7 +505,7 @@ void cam_data_notify(EVT_Event_t *evt) {
   if (0 == cam_file) {
     count = 0;
     seq_num = 0;
-    log_debug("opening %s", CAM_DATA_FILE);
+    log_info("opening %s", CAM_DATA_FILE);
     cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
     if (0 == cam_file) {
       perror("failed to open /var/stubborn/cam.jpb");
@@ -521,7 +525,7 @@ void cam_data_notify(EVT_Event_t *evt) {
 
   // End of jpg?
   if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
-    log_debug("closing cam file");
+    log_info("closing cam file");
     close(cam_file);
     cam_file = 0;
   }
