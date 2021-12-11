@@ -24,9 +24,11 @@
 #define TO_PARAM_LOOP     3 
 #define TO_PARAM_COM_SEQ  10
 #define TO_PARAM_RFM_RSSI 20
+#define TO_PARAM_RFM_SEND_MS 21
 #define TO_PARAM_MOTOR_A 40
 #define TO_PARAM_MOTOR_B 41
 #define TO_PARAM_IMPACT  50
 #define TO_PARAM_CAM_LEN 60
+#define TO_PARAM_CAM_READ_MS 61
 
 #endif

@@ -171,9 +171,9 @@ void com_ci_notify(EVT_Event_t *evt)
     memcpy(data, &msg_evt->data[1], 4);
   }
 
-  int r = CI_ingest(&ci, cmd, data);
+  uint8_t r = (uint8_t)CI_ingest(&ci, msg_evt->seq_num, cmd, data);
 
-  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, (uint8_t *)&r, sizeof(r), millis())) {
+  if (0 != COM_send_reply(&com, msg_evt->channel, msg_evt->seq_num, &r, sizeof(r), millis())) {
     Error(ERR_COM_SEND);
   }
 
@@ -221,3 +221,25 @@ void syncTO()
       }
     }
 }
+
+/*
+ * freeRam - free RAM in bytes
+ *
+ * Serial.println("\n[memCheck]");
+ * Serial.println(freeRam());
+ */
+int freeRam()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
+
+// Interrupt handler for the unhandled. Will this do anything?
+// https://stackoverflow.com/questions/23377948/arduino-avr-atmega-microcontroller-random-resets-jumps-or-variable-data-corrup
+/*
+ISR(BADISR_vect)
+{
+    for (;;) UDR0='!';
+}
+*/

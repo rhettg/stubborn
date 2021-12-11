@@ -33,6 +33,8 @@ func runCommand(cmd string) error {
 
 	defer conn.Close()
 
+	log.Printf("-> %s\n", cmd)
+
 	_, err = conn.Write([]byte(cmd))
 	if err != nil {
 		return errors.Wrap(err, "failed to write")
@@ -45,9 +47,9 @@ func runCommand(cmd string) error {
 	}
 
 	if n > 0 {
-		log.Println(strings.TrimSpace(string(b[0:n])))
+		log.Printf("<- %s\n", strings.TrimSpace(string(b[0:n])))
 	} else {
-		log.Println("empty response")
+		log.Println("<- <empty response>")
 	}
 
 	return nil
@@ -194,12 +196,12 @@ func main() {
 		cmd := inputField.GetText()
 
 		if key == tcell.KeyEnter {
-			log.Printf("Running: %s\n", inputField.GetText())
 
 			go func() {
 				err := runCommand(cmd)
 				if err != nil {
 					log.Println("failed running command: ", err)
+					return
 				}
 			}()
 		}

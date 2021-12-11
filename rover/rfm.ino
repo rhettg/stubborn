@@ -105,6 +105,10 @@ void rfm_notify(EVT_Event_t *evt) {
   Serial.println();
 #endif
 
+  unsigned long sendStart = millis();
   rf69.send(d_evt->data, d_evt->length);
   rf69.waitPacketSent();
+  if (0 != TO_set(&to, TO_PARAM_RFM_SEND_MS, millis()-sendStart)) {
+    Error(ERR_TO_SET);
+  }
 }

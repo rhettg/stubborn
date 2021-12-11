@@ -1,8 +1,9 @@
 TARGET = comsock
 LIBS = -lm
 CC = gcc
-CFLAGS = -g -Wall -Isrc -I../libraries/CiC/src -I../libraries/Stubborn/src -DDEBUG=1
+CFLAGS = -g -Wall -Isrc -I../libraries/CiC/src -I../libraries/Stubborn/src
 OBJDIR = ./build
+DEBUGFLAGS = -DDEBUG
 
 .PHONY: test all clean
 
@@ -22,6 +23,10 @@ build/%.o: %.c $(HEADERS)
 
 $(TARGET): main.c $(OBJECTS) $(CICOBJECTS)
 	$(CC) $(CFLAGS) $< $(OBJECTS) $(CICOBJECTS) $(LIBS) -o $@
+
+# Target to enable debug option
+debug: CFLAGS += $(DEBUGFLAGS)
+debug: all
 
 clean:
 	-rm -f $(OBJDIR)/*.o $(TARGET)

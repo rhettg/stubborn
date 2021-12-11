@@ -29,9 +29,9 @@ TMR_t tmr = {0};
 COM_t com = {0};
 CI_t  ci  = {0};
 
-int current_client = 0;
-int radio = 0;
-int server = 0;
+int current_client = -1;
+int radio = -1;
+int server = -1;
 
 unsigned long start_time = 0;
 
@@ -45,7 +45,11 @@ void log_error(const char* message, ...) {  va_list args;   va_start(args, messa
 
 void log_info(const char* message, ...) {   va_list args;   va_start(args, message);    log_format("info", message, args);  va_end(args); }
 
+#ifdef DEBUG
 void log_debug(const char* message, ...) {  va_list args;   va_start(args, message);    log_format("debug", message, args);     va_end(args); }
+#else
+void log_debug(const char* message, ...) {  }
+#endif
 
 void fatal(const char *msg)
 {
@@ -154,7 +158,7 @@ int run_server()
 
     struct timeval tv = {0, 100};   // sleep for ten minutes!
 
-    log_debug("starting server");
+    log_info("starting server");
 
     while (1) {
         TMR_handle(&tmr, millis());
@@ -163,7 +167,7 @@ int run_server()
 
         FD_SET(radio, &set);
 
-        if (0 == current_client) {
+        if (0 > current_client) {
             FD_SET(server, &set);
         } else {
             FD_SET(current_client, &set);
@@ -172,7 +176,7 @@ int run_server()
         int ret = select(FD_SETSIZE, &set, NULL, NULL, &tv);
         if (0 > ret) {
             perror("failed to select");
-            continue;
+            return (-1);
         }
 
         if (0 != FD_ISSET(radio, &set)) {
@@ -186,7 +190,7 @@ int run_server()
             if (0 == rlen) {
               log_error("radio: closed, exiting");
               close(radio);
-              radio = 0;
+              radio = -1;
               return 0;
             }
 
@@ -224,12 +228,14 @@ int run_server()
                     log_error("client: failed parsing command: %d", rp);
                     if (0 > send(current_client, "ERR\n", 4, 0)) {
                         perror("failed to report error");
+                        close(current_client);
+                        current_client = -1;
                     }
                 }
             } else {
                 log_info("client: closing");
                 close(current_client);
-                current_client = 0;
+                current_client = -1;
             }
         }
     }
@@ -274,9 +280,9 @@ void com_msg_notify(EVT_Event_t *evt) {
   }
 
   log_debug("com_msg_notify: %d-%d len %ld", msg_evt->channel, msg_evt->seq_num, msg_evt->length);
-  int16_t result = -127;
-  if (2 == msg_evt->length) {
-    result = *(int16_t *)msg_evt->data;
+  uint8_t result = 8;
+  if (1 == msg_evt->length) {
+    result = *(msg_evt->data);
   }
 
   if (0 != CI_ack(&ci, msg_evt->seq_num, result, millis())) {
@@ -311,13 +317,15 @@ void ci_ack_notify(EVT_Event_t *evt)
       return;
   }
 
-  if (0 == current_client) {
+  if (0 > current_client) {
+      log_debug("ack: no client");
       return;
   }
 
   CI_Ack_Event_t *ack = (CI_Ack_Event_t *)evt;
 
   if (CI_R_OK == ack->cmd->result) {
+    log_info("client: OK");
     if (0 > send(current_client, "OK\n", 3, 0)) {
         perror("failed to send client response");
     }
@@ -326,6 +334,8 @@ void ci_ack_notify(EVT_Event_t *evt)
         perror("failed to send client response");
         return;
     }
+
+    log_info("client: %s", buf);
     if (0 > send(current_client, buf, strlen(buf), 0)) {
         perror("failed to send client response");
         return;
@@ -367,8 +377,12 @@ void write_to_file(TO_t *to)
       fprintf(to_file, "MOTORB=%d", to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       fprintf(to_file, "RSSI=%d", to->objects[i].data);
+    } else if (TO_PARAM_RFM_SEND_MS == to->objects[i].param) {
+      fprintf(to_file, "SEND_MS=%lu", (unsigned long)to->objects[i].data);
     } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
       fprintf(to_file, "CAM_LEN=%lu", (unsigned long)to->objects[i].data);
+    } else if (TO_PARAM_CAM_READ_MS == to->objects[i].param) {
+      fprintf(to_file, "CAM_READ=%lu", (unsigned long)to->objects[i].data);
     } else {
       fprintf(to_file, "%d=0x%08x", to->objects[i].param, to->objects[i].data);
     }
@@ -430,8 +444,12 @@ void write_to_json_file(TO_t *to)
       json_field_int(to_json_file, "MOTORB", (int)to->objects[i].data);
     } else if (TO_PARAM_RFM_RSSI == to->objects[i].param) {
       json_field_int(to_json_file, "RSSI", to->objects[i].data);
+    } else if (TO_PARAM_RFM_SEND_MS == to->objects[i].param) {
+      json_field_int(to_json_file, "SEND_MS", to->objects[i].data);
     } else if (TO_PARAM_CAM_LEN == to->objects[i].param) {
       json_field_int(to_json_file, "CAM_LEN", to->objects[i].data);
+    } else if (TO_PARAM_CAM_READ_MS == to->objects[i].param) {
+      json_field_int(to_json_file, "CAM_READ_MS", to->objects[i].data);
     } else {
       sprintf(param_buf, "%d", to->objects[i].param);
       sprintf(value_buf, "0x%08x", to->objects[i].data);
@@ -495,7 +513,7 @@ void cam_data_notify(EVT_Event_t *evt) {
   if (0 == cam_file) {
     count = 0;
     seq_num = 0;
-    log_debug("opening %s", CAM_DATA_FILE);
+    log_info("opening %s", CAM_DATA_FILE);
     cam_file = open(CAM_DATA_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0666);
     if (0 == cam_file) {
       perror("failed to open /var/stubborn/cam.jpb");
@@ -515,7 +533,7 @@ void cam_data_notify(EVT_Event_t *evt) {
 
   // End of jpg?
   if (msg_evt->length > 2 && msg_evt->data[msg_evt->length - 2] == 0xFF && msg_evt->data[msg_evt->length - 1] == 0xD9) {
-    log_debug("closing cam file");
+    log_info("closing cam file");
     close(cam_file);
     cam_file = 0;
   }
