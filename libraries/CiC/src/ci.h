@@ -23,13 +23,12 @@ typedef int (*handler_t)(uint8_t[CI_MAX_DATA]);
 
 typedef struct {
   uint8_t cmd;
+  uint16_t cmd_num;
   uint8_t data[CI_MAX_DATA];
-
-  unsigned long cmd_num;
-  unsigned long send_at;
-
-  unsigned long ack_at;
   uint8_t result;
+
+  unsigned long send_at;
+  unsigned long ack_at;
 } Command_t;
 
 typedef struct {
