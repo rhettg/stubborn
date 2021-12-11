@@ -221,3 +221,25 @@ void syncTO()
       }
     }
 }
+
+/*
+ * freeRam - free RAM in bytes
+ *
+ * Serial.println("\n[memCheck]");
+ * Serial.println(freeRam());
+ */
+int freeRam()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
+
+// Interrupt handler for the unhandled. Will this do anything?
+// https://stackoverflow.com/questions/23377948/arduino-avr-atmega-microcontroller-random-resets-jumps-or-variable-data-corrup
+/*
+ISR(BADISR_vect)
+{
+    for (;;) UDR0='!';
+}
+*/
