@@ -1,0 +1,16 @@
+[Unit]
+Description=Image serving
+After=syslog.target network-online.target radio.service
+
+[Service]
+Type=simple
+User=root
+#EnvironmentFile=/etc/default/homebridge #Environment Variable for the service. This is a separate file creating below
+
+ExecStart=/home/rhettg/go/bin/gds-img-serv
+Restart=always
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
